@@ -1,10 +1,32 @@
-*.swp
-package-lock.json
-__pycache__
-.pytest_cache
-.venv
-*.egg-info
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.env
+.python-version
+.pytest_cache/
+.coverage
 
-# CDK asset staging directory
-.cdk.staging
-cdk.out
+# CDK
+cdk.out/
+*.template.json
+outputs.json
+cdk.context.json
+
+# Editors/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.zip
+
+# Local credentials/secrets (DO NOT COMMIT)
+# (These dirs/files are examples—add any real paths you use)
+certs/
+**/certs/
+*.pem
+*.key
+*.crt
