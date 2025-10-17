@@ -11,6 +11,17 @@ LATEST_TABLE = os.getenv("LATEST_TABLE_NAME", "BrineTankLatest")
 hist = dynamo.Table(HIST_TABLE)
 latest = dynamo.Table(LATEST_TABLE)
 
+# ----- Fill % config -----
+EMPTY_DISTANCE = float(os.getenv("EMPTY_DISTANCE", "70"))  # cm
+FULL_DISTANCE  = float(os.getenv("FULL_DISTANCE",  "6"))   # cm
+RANGE = max(0.0001, EMPTY_DISTANCE - FULL_DISTANCE)
+
+def calculate_fill_percentage(distance_cm: float):
+    # Clamp to [FULL_DISTANCE, EMPTY_DISTANCE]
+    d = max(FULL_DISTANCE, min(EMPTY_DISTANCE, distance_cm))
+    percent_full = ((EMPTY_DISTANCE - d) / RANGE) * 100.0
+    return round(percent_full, 1)
+
 def to_decimal(x):
     if x is None: return None
     if isinstance(x, Decimal): return x
@@ -21,7 +32,6 @@ def to_decimal(x):
         return None
 
 def handler(event, context):
-    # Allow either dict or string
     if isinstance(event, str):
         event = json.loads(event)
 
@@ -31,35 +41,58 @@ def handler(event, context):
     unit    = event.get("unit", "cm")
     status  = int(event.get("status", 0)) if event.get("status") is not None else 0
 
-    dist    = to_decimal(event.get("distance_cm"))
-    filt    = to_decimal(event.get("distance_cm_filtered"))
+    dist    = event.get("distance_cm")
+    dist_f  = event.get("distance_cm_filtered")
+    temp_c  = event.get("temperature_c")  # from Pi payload (optional)
 
     if not device:
         raise ValueError("Missing 'device' in event")
 
-    # 1) Write to history table
+    # Compute percent_full if we have a distance
+    percent_full = None
+    if dist is not None:
+        try:
+            percent_full = calculate_fill_percentage(float(dist))
+        except Exception:
+            percent_full = None
+
+    # Convert numerics to Decimal for DynamoDB
+    dist_dec   = to_decimal(dist)
+    distf_dec  = to_decimal(dist_f)
+    temp_dec   = to_decimal(temp_c)
+    pct_dec    = to_decimal(percent_full)
+
+    # TTL: now + 90 days
+    ttl_epoch = int(time.time()) + 90 * 24 * 3600
+
+    # 1) History item
     hist_item = {
         "device": device,
         "ts": ts,
         "sensor": sensor,
         "unit": unit,
         "status": status,
+        "ttl_epoch": ttl_epoch,  # enables 90-day retention
     }
-    if dist is not None: hist_item["distance_cm"] = dist
-    if filt is not None: hist_item["distance_cm_filtered"] = filt
+    if dist_dec   is not None: hist_item["distance_cm"] = dist_dec
+    if distf_dec  is not None: hist_item["distance_cm_filtered"] = distf_dec
+    if pct_dec    is not None: hist_item["percent_full"] = pct_dec
+    if temp_dec   is not None: hist_item["temperature_c"] = temp_dec
 
     hist.put_item(Item=hist_item)
 
-    # 2) Upsert latest table (1 item per device)
+    # 2) Latest item (no TTL so it always exists)
     latest_item = {
         "device": device,
-        "ts": ts,              # last updated
+        "ts": ts,
         "sensor": sensor,
         "unit": unit,
         "status": status,
     }
-    if dist is not None: latest_item["distance_cm"] = dist
-    if filt is not None: latest_item["distance_cm_filtered"] = filt
+    if dist_dec   is not None: latest_item["distance_cm"] = dist_dec
+    if distf_dec  is not None: latest_item["distance_cm_filtered"] = distf_dec
+    if pct_dec    is not None: latest_item["percent_full"] = pct_dec
+    if temp_dec   is not None: latest_item["temperature_c"] = temp_dec
 
     latest.put_item(Item=latest_item)
 

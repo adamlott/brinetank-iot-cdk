@@ -20,6 +20,7 @@ class BrinetankIotCdkStack(Stack):
             partition_key=dynamodb.Attribute(name="device", type=dynamodb.AttributeType.STRING),
             sort_key=dynamodb.Attribute(name="ts", type=dynamodb.AttributeType.STRING),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            time_to_live_attribute="ttl_epoch",
             removal_policy=RemovalPolicy.RETAIN
         )
 
@@ -43,6 +44,8 @@ class BrinetankIotCdkStack(Stack):
             environment={
                 "TABLE_NAME": hist_table.table_name,
                 "LATEST_TABLE_NAME": latest_table.table_name,
+                "EMPTY_DISTANCE": "70",
+                "FULL_DISTANCE": "6",
             },
         )
         hist_table.grant_write_data(ingest_fn)
