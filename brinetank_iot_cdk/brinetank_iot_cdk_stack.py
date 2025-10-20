@@ -46,6 +46,7 @@ class BrinetankIotCdkStack(Stack):
                 "LATEST_TABLE_NAME": latest_table.table_name,
                 "EMPTY_DISTANCE": "70",
                 "FULL_DISTANCE": "6",
+                "TTL_DAYS": "7",
             },
         )
         hist_table.grant_write_data(ingest_fn)

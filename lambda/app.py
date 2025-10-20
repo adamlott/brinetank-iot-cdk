@@ -63,7 +63,8 @@ def handler(event, context):
     pct_dec    = to_decimal(percent_full)
 
     # TTL: now + 90 days
-    ttl_epoch = int(time.time()) + 90 * 24 * 3600
+    TTL_DAYS = int(os.getenv("TTL_DAYS", "7"))  # default 7 days
+    ttl_epoch = int(time.time()) + TTL_DAYS * 24 * 3600
 
     # 1) History item
     hist_item = {
@@ -72,7 +73,7 @@ def handler(event, context):
         "sensor": sensor,
         "unit": unit,
         "status": status,
-        "ttl_epoch": ttl_epoch,  # enables 90-day retention
+        "ttl_epoch": ttl_epoch,
     }
     if dist_dec   is not None: hist_item["distance_cm"] = dist_dec
     if distf_dec  is not None: hist_item["distance_cm_filtered"] = distf_dec
