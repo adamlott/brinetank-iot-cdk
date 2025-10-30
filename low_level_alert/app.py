@@ -1,30 +1,35 @@
 import os, json, boto3, datetime
 
-sns = boto3.client("sns")
-TOPIC_ARN = os.environ["ALERT_TOPIC_ARN"]
-ALERT_FN_NAME = os.environ.get("ALERT_FN_NAME")
-lambda_client = boto3.client("lambda")
+ses = boto3.client("sesv2")
+
+SES_FROM = os.environ["SES_FROM"]  # e.g., alerts@salty-water.com
+# JSON string mapping sensorId -> list of emails
+RECIPIENTS_JSON = os.environ.get("RECIPIENTS_JSON", "{}")
+RECIPIENTS = json.loads(RECIPIENTS_JSON)
 
 def handler(event, context):
-    # event could be your IoT-processed payload:
-    # { "sensorId": "sensor-kitchen", "levelPct": 8.4, "ts": "2025-10-25T00:00:00Z" }
     msg = event if isinstance(event, dict) else json.loads(event)
     sensor_id = msg["sensorId"]
     level = float(msg["levelPct"])
     ts = msg.get("ts", datetime.datetime.utcnow().isoformat() + "Z")
 
-def maybe_alert(device: str, level_pct: float, ts_iso: str):
-    if level_pct < 10.0 and ALERT_FN_NAME:
-        payload = {"sensorId": device, "levelPct": level_pct, "ts": ts_iso}
-        lambda_client.invoke(
-            FunctionName=ALERT_FN_NAME,
-            InvocationType="Event",  # async
-            Payload=json.dumps(payload).encode("utf-8"),
-        )
+    # Choose recipients:
+    # 1) allow explicit "to" in event (list or string), else
+    # 2) look up by sensor_id in env mapping
+    to_arg = msg.get("to")
+    if isinstance(to_arg, str):
+        to_addrs = [to_arg]
+    elif isinstance(to_arg, list):
+        to_addrs = to_arg
+    else:
+        to_addrs = RECIPIENTS.get(sensor_id, [])
 
-    # only publish when you've applied hysteresis/cooldown upstream
+    if not to_addrs:
+        # No recipients configured; nothing to send
+        return {"ok": False, "reason": f"No recipients for {sensor_id}"}
+
     subject = f"[Salt Alert] {sensor_id} below 10% ({level:.1f}%)"
-    body = (
+    body_text = (
         f"Brine tank level is low.\n\n"
         f"Sensor: {sensor_id}\n"
         f"Level:  {level:.1f}%\n"
@@ -32,14 +37,13 @@ def maybe_alert(device: str, level_pct: float, ts_iso: str):
         f"Action: Schedule a refill."
     )
 
-    sns.publish(
-        TopicArn=TOPIC_ARN,
-        Subject=subject,
-        Message=body,
-        MessageAttributes={
-            "sensorId": {"DataType": "String", "StringValue": sensor_id},
-            "type": {"DataType": "String", "StringValue": "LOW_LEVEL"}
-        }
+    ses.send_email(
+        FromEmailAddress=SES_FROM,
+        Destination={"ToAddresses": to_addrs},
+        Content={"Simple": {
+            "Subject": {"Data": subject},
+            "Body": {"Text": {"Data": body_text}}
+        }},
     )
 
-    return {"ok": True}
+    return {"ok": True, "sent": to_addrs}

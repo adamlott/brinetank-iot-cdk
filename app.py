@@ -1,24 +1,18 @@
-# app.py
+#!/usr/bin/env python3
 import aws_cdk as cdk
-from brinetank_iot_cdk import BrinetankIotCdkStack, NotificationsStack
+from brinetank_iot_cdk.brinetank_iot_cdk_stack import BrinetankIotCdkStack
 
 app = cdk.App()
 
-notifications = NotificationsStack(
+processing = BrinetankIotCdkStack(
     app,
-    "NotificationsStack",
+    "BrinetankIotCdkStack",
     env_name="prod",
+    ses_from="alerts@salty-water.com",
     sensor_email_map={
         "sensor-garage": ["you@example.com"],
         "sensor-basement": ["family@example.com"],
     },
-)
-
-processing = BrinetankIotCdkStack(
-    app,
-    "ProcessingStack",
-    notification_topic=notifications.topic,
-    env_name="prod",
 )
 
 app.synth()

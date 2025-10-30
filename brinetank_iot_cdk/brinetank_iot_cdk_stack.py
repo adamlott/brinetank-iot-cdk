@@ -1,17 +1,17 @@
+from pathlib import Path
 from aws_cdk import (
-    Stack,
-    CfnOutput,
-    aws_sns as sns,
-    aws_sns_subscriptions as subs,
-    aws_dynamodb as dynamodb,
+    Stack, Duration, RemovalPolicy,
     aws_lambda as _lambda,
+    aws_dynamodb as dynamodb,
     aws_iam as iam,
     aws_iot as iot,
-    RemovalPolicy,
-    Duration,
 )
 from constructs import Construct
+import json
 
+PROJECT_ROOT = Path(__file__).parent.parent
+LOW_LEVEL_ALERT_DIR = (PROJECT_ROOT / "low_level_alert").as_posix()
+INGEST_DIR = (PROJECT_ROOT / "lambda").as_posix()
 
 class BrinetankIotCdkStack(Stack):
     def __init__(
@@ -19,13 +19,14 @@ class BrinetankIotCdkStack(Stack):
         scope: Construct,
         construct_id: str,
         *,
-        notification_topic: sns.ITopic,   # <-- accept the topic from app.py
         env_name: str = "prod",
-        **kwargs
+        ses_from: str,                     # NEW: e.g. "alerts@salty-water.com"
+        sensor_email_map: dict,            # NEW: {"sensor-garage": ["you@..."], ...}
+        **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # 1) DynamoDB: history table (device, ts)
+        # Tables
         hist_table = dynamodb.Table(
             self, "BrineTankReadings",
             table_name="BrineTankReadings",
@@ -35,8 +36,6 @@ class BrinetankIotCdkStack(Stack):
             time_to_live_attribute="ttl_epoch",
             removal_policy=RemovalPolicy.RETAIN
         )
-
-        # 2) DynamoDB: latest table (one item per device)
         latest_table = dynamodb.Table(
             self, "BrineTankLatest",
             table_name="BrineTankLatest",
@@ -45,28 +44,33 @@ class BrinetankIotCdkStack(Stack):
             removal_policy=RemovalPolicy.RETAIN
         )
 
-        # === NEW: Low-level alert Lambda that publishes to SNS ===
+        # ALERT LAMBDA (SES)
         alert_fn = _lambda.Function(
             self, "LowLevelAlert",
             function_name=f"LowLevelAlert-{env_name}",
             runtime=_lambda.Runtime.PYTHON_3_11,
             handler="app.handler",
-            code=_lambda.Code.from_asset("low_level_alert"),  # your /low_level_alert/app.py
+            code=_lambda.Code.from_asset(LOW_LEVEL_ALERT_DIR),
             timeout=Duration.seconds(10),
             environment={
-                "ALERT_TOPIC_ARN": notification_topic.topic_arn
-            }
+                "SES_FROM": ses_from,
+                "RECIPIENTS_JSON": json.dumps(sensor_email_map),
+            },
         )
-        # Allow this Lambda to publish to the topic
-        notification_topic.grant_publish(alert_fn)
 
-        # 3) Ingest Lambda
+        # Allow SES send
+        alert_fn.add_to_role_policy(iam.PolicyStatement(
+            actions=["ses:SendEmail", "ses:SendRawEmail"],
+            resources=["*"]  # (optionally scope down to your identity ARN)
+        ))
+
+        # INGEST LAMBDA
         ingest_fn = _lambda.Function(
             self, "BrineTankIngest",
             function_name=f"BrineTankIngest-{env_name}",
             runtime=_lambda.Runtime.PYTHON_3_11,
             handler="app.handler",
-            code=_lambda.Code.from_asset("lambda"),           # your existing ingest code folder
+            code=_lambda.Code.from_asset(INGEST_DIR),
             timeout=Duration.seconds(30),
             environment={
                 "TABLE_NAME": hist_table.table_name,
@@ -74,39 +78,35 @@ class BrinetankIotCdkStack(Stack):
                 "EMPTY_DISTANCE": "70",
                 "FULL_DISTANCE": "6",
                 "TTL_DAYS": "7",
-                # let ingest invoke the alert lambda when needed
-                "ALERT_FN_NAME": alert_fn.function_name
+                "ALERT_FN_NAME": f"LowLevelAlert-{env_name}",  # invoke by name
             },
         )
         hist_table.grant_write_data(ingest_fn)
         latest_table.grant_write_data(ingest_fn)
 
-        # Allow IoT Core to invoke this Lambda
+        # Allow IoT → ingest
         ingest_fn.add_permission(
             "AllowIotInvoke",
             principal=iam.ServicePrincipal("iot.amazonaws.com"),
             action="lambda:InvokeFunction",
         )
 
-        # Allow ingest to invoke the alert function
+        # Allow ingest → alert
         alert_fn.grant_invoke(ingest_fn)
 
-        # 4) IoT Rule: route telemetry to the Ingest Lambda
+        # IoT rule
         sql = "SELECT device, sensor, unit, distance_cm, distance_cm_filtered, status, ts FROM 'pi/+/telemetry'"
-
         iot.CfnTopicRule(
             self, "BrineTankIngestRule",
-            rule_name=f"BrineTankIngestRule-{env_name}",
+            rule_name=f"BrineTankIngestRule",
             topic_rule_payload=iot.CfnTopicRule.TopicRulePayloadProperty(
                 sql=sql,
                 aws_iot_sql_version="2016-03-23",
                 rule_disabled=False,
-                actions=[
-                    iot.CfnTopicRule.ActionProperty(
-                        lambda_=iot.CfnTopicRule.LambdaActionProperty(
-                            function_arn=ingest_fn.function_arn
-                        )
+                actions=[iot.CfnTopicRule.ActionProperty(
+                    lambda_=iot.CfnTopicRule.LambdaActionProperty(
+                        function_arn=ingest_fn.function_arn
                     )
-                ],
+                )],
             ),
         )
