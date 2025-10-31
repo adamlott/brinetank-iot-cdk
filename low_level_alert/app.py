@@ -34,7 +34,7 @@ def handler(event, context):
         f"Sensor: {sensor_id}\n"
         f"Level:  {level:.1f}%\n"
         f"Time:   {ts}\n\n"
-        f"Action: Time to schedule a refill!  http://www.salty-water.com"
+        f"Action: Time to schedule a refill!  https://salty-water.com"
     )
 
     ses.send_email(
