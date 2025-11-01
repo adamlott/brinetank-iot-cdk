@@ -43,25 +43,33 @@ class BrinetankIotCdkStack(Stack):
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN
         )
+        notif_table = dynamodb.Table(
+            self, "SensorNotificationConfig",
+            table_name="SensorNotificationConfig",
+            partition_key=dynamodb.Attribute(name="sensorId", type=dynamodb.AttributeType.STRING),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.RETAIN,
+        )
 
         # ALERT LAMBDA (SES)
         alert_fn = _lambda.Function(
             self, "LowLevelAlert",
             function_name=f"LowLevelAlert-{env_name}",
-            runtime=_lambda.Runtime.PYTHON_3_11,
+            runtime=_lambda.Runtime.PYTHON_3_12,
             handler="app.handler",
             code=_lambda.Code.from_asset(LOW_LEVEL_ALERT_DIR),
             timeout=Duration.seconds(10),
             environment={
                 "SES_FROM": ses_from,
-                "RECIPIENTS_JSON": json.dumps(sensor_email_map),
+                "CONFIG_TABLE": notif_table.table_name,
             },
         )
 
         # Allow SES send
+        notif_table.grant_read_data(alert_fn)
         alert_fn.add_to_role_policy(iam.PolicyStatement(
             actions=["ses:SendEmail", "ses:SendRawEmail"],
-            resources=["*"]  # (optionally scope down to your identity ARN)
+            resources=["*"]
         ))
 
         # INGEST LAMBDA
