@@ -66,7 +66,7 @@ class BrinetankIotCdkStack(Stack):
         )
 
         # Allow SES send
-        notif_table.grant_read_data(alert_fn)
+        notif_table.grant_read_write_data(alert_fn)
         alert_fn.add_to_role_policy(iam.PolicyStatement(
             actions=["ses:SendEmail", "ses:SendRawEmail"],
             resources=["*"]

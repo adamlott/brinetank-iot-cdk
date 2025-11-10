@@ -1,5 +1,8 @@
-import os, json, time, boto3, logging
-from decimal import Decimal, InvalidOperation
+import os, json, boto3, time, datetime, logging
+from decimal import Decimal, InvalidOperation  # <-- needed for to_decimal()
+
+lambda_client = boto3.client("lambda")
+ALERT_FN_NAME = os.environ.get("ALERT_FN_NAME")
 
 dynamo = boto3.resource("dynamodb")
 log = logging.getLogger()
@@ -36,14 +39,14 @@ def handler(event, context):
         event = json.loads(event)
 
     device  = event.get("device")
-    ts      = event.get("ts") or time.strftime("%Y-%m-%dT%H:%M:%S")
+    ts      = event.get("ts") or time.strftime("%Y-%m-%dT%H:%M:%S")  # ISO-ish; fine for our use
     sensor  = event.get("sensor", "A02YYUW")
     unit    = event.get("unit", "cm")
     status  = int(event.get("status", 0)) if event.get("status") is not None else 0
 
     dist    = event.get("distance_cm")
     dist_f  = event.get("distance_cm_filtered")
-    temp_c  = event.get("temperature_c")  # from Pi payload (optional)
+    temp_c  = event.get("temperature_c")  # optional
 
     if not device:
         raise ValueError("Missing 'device' in event")
@@ -62,7 +65,7 @@ def handler(event, context):
     temp_dec   = to_decimal(temp_c)
     pct_dec    = to_decimal(percent_full)
 
-    # TTL: now + 90 days
+    # TTL: now + N days
     TTL_DAYS = int(os.getenv("TTL_DAYS", "7"))  # default 7 days
     ttl_epoch = int(time.time()) + TTL_DAYS * 24 * 3600
 
@@ -96,5 +99,20 @@ def handler(event, context):
     if temp_dec   is not None: latest_item["temperature_c"] = temp_dec
 
     latest.put_item(Item=latest_item)
+
+    # 3) 🔔 Invoke the alert lambda for every reading (it will manage hysteresis/cooldown)
+    if ALERT_FN_NAME and percent_full is not None:
+        try:
+            lambda_client.invoke(
+                FunctionName=ALERT_FN_NAME,
+                InvocationType="Event",  # async
+                Payload=json.dumps({
+                    "sensorId": device,             # expected by LowLevelAlert
+                    "levelPct": float(percent_full),# use % full
+                    "ts": ts                        # pass through your reading timestamp
+                }).encode("utf-8"),
+            )
+        except Exception as e:
+            log.warning(f"Failed to invoke {ALERT_FN_NAME}: {e}")
 
     return {"ok": True, "history": hist_item, "latest": latest_item}
