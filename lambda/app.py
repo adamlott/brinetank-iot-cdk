@@ -101,18 +101,21 @@ def handler(event, context):
     latest.put_item(Item=latest_item)
 
     # 3) 🔔 Invoke the alert lambda for every reading (it will manage hysteresis/cooldown)
-    if ALERT_FN_NAME and percent_full is not None:
+    if ALERT_FN_NAME and percent_full is not None and percent_full < 10:
         try:
             lambda_client.invoke(
                 FunctionName=ALERT_FN_NAME,
                 InvocationType="Event",  # async
                 Payload=json.dumps({
-                    "sensorId": device,             # expected by LowLevelAlert
-                    "levelPct": float(percent_full),# use % full
-                    "ts": ts                        # pass through your reading timestamp
+                    "sensorId": device,              # expected by LowLevelAlert
+                    "levelPct": float(percent_full), # use % full
+                    "ts": ts                         # pass through your reading timestamp
                 }).encode("utf-8"),
             )
+            log.info(f"Low level alert triggered for {device}: {percent_full:.1f}% full")
         except Exception as e:
             log.warning(f"Failed to invoke {ALERT_FN_NAME}: {e}")
+    else:
+        log.debug(f"No alert sent — {device} at {percent_full:.1f}% full")
 
     return {"ok": True, "history": hist_item, "latest": latest_item}
