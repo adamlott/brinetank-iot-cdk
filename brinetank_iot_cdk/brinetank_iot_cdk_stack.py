@@ -103,7 +103,7 @@ class BrinetankIotCdkStack(Stack):
         alert_fn.grant_invoke(ingest_fn)
 
         # IoT rule
-        sql = "SELECT device, sensor, unit, distance_cm, distance_cm_filtered, status, ts FROM 'pi/+/telemetry'"
+        sql = "SELECT device, sensor, unit, distance_cm, distance_cm_filtered, status, temperature_c, ts FROM 'pi/+/telemetry'"
         iot.CfnTopicRule(
             self, "BrineTankIngestRule",
             rule_name=f"BrineTankIngestRule",
