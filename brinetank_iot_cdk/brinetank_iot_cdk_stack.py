@@ -76,7 +76,7 @@ class BrinetankIotCdkStack(Stack):
         ingest_fn = _lambda.Function(
             self, "BrineTankIngest",
             function_name=f"BrineTankIngest-{env_name}",
-            runtime=_lambda.Runtime.PYTHON_3_11,
+            runtime=_lambda.Runtime.PYTHON_3_12,
             handler="app.handler",
             code=_lambda.Code.from_asset(INGEST_DIR),
             timeout=Duration.seconds(30),
