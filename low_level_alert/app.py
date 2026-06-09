@@ -16,6 +16,11 @@ DEFAULT_THRESHOLD = 10.0
 DEFAULT_HYSTERESIS = 2.0
 DEFAULT_COOLDOWN = 6 * 3600  # 6 hours
 
+# Salt refill detection: if level was below this and jumps above SALT_ADDED_LEVEL,
+# assume someone added salt and force state back to normal
+SALT_LOW_WATERMARK = 10.0   # % — previous level must be below this
+SALT_ADDED_LEVEL = 50.0     # % — new level must be above this
+
 def _now_iso() -> str:
     return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 
@@ -166,6 +171,48 @@ def _update_state(sensor_id: str, new_state: str, level: float, ts: str, alert_s
         log.error(f"Failed to update DynamoDB state for {sensor_id}: {e}")
         raise
 
+def _is_salt_added(prev_level: float, current_level: float) -> bool:
+    """
+    Detect if salt was likely added based on a large level jump.
+
+    Returns True when the previous level was below SALT_LOW_WATERMARK and the
+    current level is above SALT_ADDED_LEVEL, indicating a manual refill.
+    """
+    result = prev_level < SALT_LOW_WATERMARK and current_level > SALT_ADDED_LEVEL
+    log.info(
+        f"Salt-added check: prev_level={prev_level:.1f}% < {SALT_LOW_WATERMARK}% "
+        f"and current_level={current_level:.1f}% > {SALT_ADDED_LEVEL}% => {result}"
+    )
+    return result
+
+
+def _send_recovery_email(sensor_id: str, level: float, ts: str, to_addrs: List[str]) -> None:
+    """Send a notification that the brine tank salt level is no longer low."""
+    subject = f"[Salt Alert] {sensor_id} salt level restored ({level:.1f}%)"
+    body_text = (
+        f"Brine tank salt level is no longer low.\n\n"
+        f"Sensor: {sensor_id}\n"
+        f"Level:  {level:.1f}%\n"
+        f"Time:   {ts}\n"
+    )
+
+    log.info(f"Sending recovery email to {to_addrs}, subject: {subject}")
+
+    try:
+        ses_response = ses.send_email(
+            FromEmailAddress=SES_FROM,
+            Destination={"ToAddresses": to_addrs},
+            Content={"Simple": {
+                "Subject": {"Data": subject},
+                "Body": {"Text": {"Data": body_text}},
+            }},
+        )
+        log.info(f"Recovery email sent successfully: {json.dumps(ses_response, default=str)}")
+    except Exception as e:
+        log.error(f"Failed to send recovery email via SES: {e}")
+        raise
+
+
 def handler(event, context):
     """Lambda entry point for processing brine tank level alerts."""
     log.info(f"Processing alert event: {json.dumps(event, default=str)}")
@@ -200,7 +247,17 @@ def handler(event, context):
 
         log.info(f"Alert parameters: threshold={threshold:.1f}%, hysteresis={hysteresis:.1f}%, cooldown={cooldown/3600:.1f}h")
 
-        new_state = _compute_new_state(prev_state, level, threshold, hysteresis)
+        # Salt-refill detection: large jump from very low overrides normal state logic
+        salt_added = _is_salt_added(cfg["lastLevel"], level)
+        if salt_added:
+            log.info(
+                f"Salt refill detected for {sensor_id}: "
+                f"{cfg['lastLevel']:.1f}% -> {level:.1f}%. Forcing state to normal."
+            )
+            new_state = "normal"
+        else:
+            new_state = _compute_new_state(prev_state, level, threshold, hysteresis)
+
         send = _should_alert(prev_state, cfg["lastAlertTs"], cooldown, level, threshold)
 
         log.info(f"Decision: prev_state={prev_state} -> new_state={new_state}, should_send_alert={send}")
@@ -240,6 +297,14 @@ def handler(event, context):
             log.warning(f"Alert should be sent but no email addresses available for sensor {sensor_id}")
         elif not send:
             log.info("No alert sent - conditions not met")
+
+        # Send recovery email when transitioning from low -> normal (includes salt-refill case)
+        recovered = prev_state == "low" and new_state == "normal"
+        if recovered and to_addrs:
+            log.info(f"State recovered low -> normal for {sensor_id}, sending recovery email")
+            _send_recovery_email(sensor_id, level, ts, to_addrs)
+        elif recovered and not to_addrs:
+            log.warning(f"State recovered but no email addresses available for sensor {sensor_id}")
 
         _update_state(
             sensor_id=sensor_id,
