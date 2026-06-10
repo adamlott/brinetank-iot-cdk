@@ -101,7 +101,7 @@ def handler(event, context):
     latest.put_item(Item=latest_item)
 
     # 3) 🔔 Invoke the alert lambda for every reading (it will manage hysteresis/cooldown)
-    if ALERT_FN_NAME and percent_full is not None and percent_full < 10:
+    if ALERT_FN_NAME and percent_full is not None:
         try:
             lambda_client.invoke(
                 FunctionName=ALERT_FN_NAME,
