@@ -160,6 +160,61 @@ aws dynamodb get-item \
   --key '{"device":{"S":"sensor-garage"}}'
 ```
 
+## Customer Portal Stack (CustomerPortalStack)
+
+The customer-facing salt-level portal is a separate stack from `BrinetankIotCdkStack` — it only ever reads `BrineTankLatest`/`BrineTankReadings` and owns its own Cognito user pool, `CustomerDevices` table, API, and frontend hosting.
+
+### 1. Build the frontend before deploying
+
+`BucketDeployment` uploads `frontend/dist/`, so it must exist before `cdk deploy`:
+
+```powershell
+cd frontend
+npm install
+npm run build
+cd ..
+```
+
+### 2. Deploy the stack
+
+```powershell
+cdk deploy CustomerPortalStack
+```
+
+Note the outputs: `UserPoolId`, `UserPoolClientId`, `ApiUrl`, `CloudFrontUrl`. Copy the first three into `frontend/.env` (see `frontend/.env.example`) and re-run `npm run build` + `cdk deploy CustomerPortalStack` so the frontend is built with the right config.
+
+### 3. Link a customer to a device
+
+Device→customer mapping is manual for now (no self-service claiming). Add a row per sensor a customer should be able to see:
+
+```powershell
+aws dynamodb put-item `
+  --table-name CustomerDevices `
+  --item '{
+    "email": {"S": "you@example.com"},
+    "sensorId": {"S": "sensor-garage"}
+  }'
+```
+
+**Always lowercase the email**, regardless of how the customer typed it when signing up — Cognito preserves the casing on the ID token's `email` claim, and the Lambda lowercases it before querying, so a mismatched case here means the customer sees no devices.
+
+If a customer's email is ever wrong: delete/recreate the Cognito user (email is also the sign-in alias) and delete/recreate the corresponding `CustomerDevices` item (email is its partition key, so it can't be edited in place).
+
+### 4. Test end-to-end without the frontend
+
+```powershell
+aws cognito-idp sign-up --client-id <clientId> --username you@example.com --password 'Test1234!'
+aws cognito-idp admin-confirm-sign-up --user-pool-id <poolId> --username you@example.com
+aws cognito-idp initiate-auth --client-id <clientId> --auth-flow USER_PASSWORD_AUTH `
+  --auth-parameters USERNAME=you@example.com,PASSWORD='Test1234!'
+```
+
+Take `IdToken` from the response, then:
+
+```powershell
+curl -H "Authorization: Bearer <IdToken>" "<ApiUrl>/devices"
+```
+
 ## Environment-Specific Deployments
 
 ### Multiple Environments
