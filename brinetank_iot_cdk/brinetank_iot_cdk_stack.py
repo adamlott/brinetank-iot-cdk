@@ -132,7 +132,7 @@ class BrinetankIotCdkStack(Stack):
                 "LATEST_TABLE_NAME": latest_table.table_name,
                 "EMPTY_DISTANCE": "70",
                 "FULL_DISTANCE": "6",
-                "TTL_DAYS": "7",
+                "TTL_DAYS": "45",
                 "ALERT_FN_NAME": alert_fn.function_name,
             },
         )

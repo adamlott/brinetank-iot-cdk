@@ -46,9 +46,11 @@ Prevents notification spam using:
 - **Cooldown**: Minimum time between alerts (default: 6 hours)
 
 ### Data Retention
-- Historical readings auto-expire after 7 days (configurable TTL)
+- Historical readings auto-expire after 45 days (configurable TTL via `TTL_DAYS` env var on the ingest Lambda)
+- The customer portal's history view shows the most recent 30 days (configurable via `HISTORY_DAYS` env var on `CustomerPortalApi`)
 - Latest readings persist indefinitely for status checks
 - Alert state persists in configuration table
+- TTL changes only apply to newly-written readings — existing items keep whatever `ttl_epoch` was computed at write time
 
 ## Development Workflow
 

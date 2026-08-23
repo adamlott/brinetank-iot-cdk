@@ -83,11 +83,12 @@ class CustomerPortalStack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_12,
             handler="app.handler",
             code=_lambda.Code.from_asset(PORTAL_API_DIR),
-            timeout=Duration.seconds(10),
+            timeout=Duration.seconds(15),
             environment={
                 "CUSTOMER_DEVICES_TABLE": customer_devices.table_name,
                 "LATEST_TABLE_NAME": latest_table.table_name,
                 "HIST_TABLE_NAME": readings_table.table_name,
+                "HISTORY_DAYS": "30",
             },
         )
 

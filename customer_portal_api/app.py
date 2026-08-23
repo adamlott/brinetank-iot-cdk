@@ -1,4 +1,5 @@
 import os, json, boto3, logging
+from datetime import datetime, timedelta
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key
 
@@ -14,7 +15,11 @@ customer_devices = dynamo.Table(CUSTOMER_DEVICES_TABLE)
 latest = dynamo.Table(LATEST_TABLE)
 hist = dynamo.Table(HIST_TABLE)
 
-HISTORY_LIMIT = 200
+HISTORY_DAYS = int(os.getenv("HISTORY_DAYS", "30"))
+# Safety cap on a single request's row count (readings are ~120/day at the
+# real hourly-batch-of-5 cadence, so 30 days is normally ~3600 rows) —
+# guards against an unexpectedly chatty device exhausting the Lambda timeout.
+HISTORY_MAX_ITEMS = 10000
 
 
 def _decimal_default(obj):
@@ -53,12 +58,22 @@ def _device_history(email, sensor_id):
     if not owned:
         return None  # caller does not own this device
 
-    resp = hist.query(
-        KeyConditionExpression=Key("device").eq(sensor_id),
-        ScanIndexForward=False,
-        Limit=HISTORY_LIMIT,
-    )
-    return resp.get("Items", [])
+    cutoff = (datetime.utcnow() - timedelta(days=HISTORY_DAYS)).strftime("%Y-%m-%dT%H:%M:%S")
+
+    items = []
+    query_kwargs = {
+        "KeyConditionExpression": Key("device").eq(sensor_id) & Key("ts").gte(cutoff),
+        "ScanIndexForward": False,
+    }
+    while True:
+        resp = hist.query(**query_kwargs)
+        items.extend(resp.get("Items", []))
+        last_key = resp.get("LastEvaluatedKey")
+        if not last_key or len(items) >= HISTORY_MAX_ITEMS:
+            break
+        query_kwargs["ExclusiveStartKey"] = last_key
+
+    return items
 
 
 def handler(event, context):
