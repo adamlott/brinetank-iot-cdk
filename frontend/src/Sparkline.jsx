@@ -60,9 +60,9 @@ export default function Sparkline({ readings }) {
           preserveAspectRatio="none"
           style={{ display: "block" }}
         >
-          <polyline points={polyPoints} fill="none" stroke="#1a73e8" strokeWidth="2" />
+          <polyline points={polyPoints} fill="none" stroke="#C1502E" strokeWidth="2" />
           {hoverCoord && (
-            <line x1={hoverCoord.x} y1="0" x2={hoverCoord.x} y2={HEIGHT} stroke="#999" strokeWidth="1" />
+            <line x1={hoverCoord.x} y1="0" x2={hoverCoord.x} y2={HEIGHT} stroke="#5A4636" strokeOpacity="0.35" strokeWidth="1" />
           )}
         </svg>
         {hoverCoord && (
@@ -75,7 +75,7 @@ export default function Sparkline({ readings }) {
               height: 8,
               margin: "-4px 0 0 -4px",
               borderRadius: "50%",
-              background: "#1a73e8",
+              background: "#C1502E",
               pointerEvents: "none",
             }}
           />
@@ -87,8 +87,8 @@ export default function Sparkline({ readings }) {
               left: `${hoverPct}%`,
               top: 0,
               transform: `translate(${tooltipTx}, calc(-100% - 6px))`,
-              background: "#1a1a1a",
-              color: "#fff",
+              background: "#3A2A20",
+              color: "#FFF6EC",
               fontSize: "0.7rem",
               lineHeight: 1.3,
               padding: "0.25rem 0.4rem",
@@ -113,7 +113,7 @@ export default function Sparkline({ readings }) {
           display: "flex",
           justifyContent: "space-between",
           fontSize: "0.75rem",
-          color: "#666",
+          color: "#5A4636",
         }}
       >
         <span>{oldestLabel}</span>

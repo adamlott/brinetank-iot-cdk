@@ -1,46 +1,67 @@
+/* Palette + type lifted from the salty-water.com marketing site so the portal
+   reads as the same brand. Keep these tokens in sync with styles.css there. */
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+
+  --cream: #FFF6EC;
+  --coral: #FBD9C7;
+  --terracotta: #C1502E;
+  --terracotta-dark: #9E3E22;
+  --ink: #3A2A20;
+  --brown: #5A4636;
+  --yellow: #F2B705;
+  --danger: #B3261E;
+
+  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 body {
   margin: 0;
-  background: #f4f6f8;
-  color: #1a1a1a;
+  background: var(--cream);
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .page {
-  max-width: 480px;
+  max-width: 520px;
   margin: 0 auto;
   padding: 2rem 1rem;
 }
 
 h1 {
-  font-size: 1.4rem;
+  font-family: "Baloo 2", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.6rem;
   margin-bottom: 1.5rem;
 }
 
 .card {
   background: #fff;
-  border-radius: 10px;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 3px solid var(--ink);
+  border-radius: 24px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 6px 6px 0 var(--coral);
 }
 
 .card h2 {
+  font-family: "Baloo 2", system-ui, sans-serif;
+  font-weight: 700;
   margin: 0 0 0.25rem;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
 }
 
 .fill-pct {
-  font-size: 2rem;
-  font-weight: 600;
+  font-family: "Baloo 2", system-ui, sans-serif;
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--terracotta);
 }
 
 .meta {
-  color: #666;
+  color: var(--brown);
   font-size: 0.85rem;
+  font-weight: 600;
 }
 
 form {
@@ -50,36 +71,79 @@ form {
 }
 
 input {
-  padding: 0.6rem 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: inherit;
   font-size: 1rem;
 }
 
+input:focus {
+  outline: 3px solid var(--yellow);
+  outline-offset: 1px;
+}
+
 button {
-  padding: 0.6rem 0.75rem;
-  border: none;
-  border-radius: 6px;
-  background: #1a73e8;
-  color: #fff;
+  padding: 0.85rem 1rem;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  background: var(--terracotta);
+  color: var(--cream);
+  font-family: inherit;
   font-size: 1rem;
+  font-weight: 800;
   cursor: pointer;
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+button:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 var(--ink);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 5px 5px 0 var(--ink);
 }
 
 button.link {
   background: none;
-  color: #1a73e8;
+  border: none;
+  box-shadow: none;
+  color: var(--terracotta);
   padding: 0;
   text-align: left;
+  text-decoration: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: var(--yellow);
+}
+
+button.link:hover {
+  color: var(--terracotta-dark);
+  transform: none;
 }
 
 .error {
-  color: #c62828;
+  color: var(--danger);
   font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .signout {
   background: none;
-  color: #666;
+  border: none;
+  box-shadow: none;
+  color: var(--brown);
   font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.signout:hover {
+  color: var(--ink);
+  transform: none;
 }
