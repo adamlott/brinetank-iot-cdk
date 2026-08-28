@@ -30,3 +30,5 @@ certs/
 *.pem
 *.key
 *.crt
+
+.claude/settings.local.json
