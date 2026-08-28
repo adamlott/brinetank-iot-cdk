@@ -11,6 +11,9 @@ from aws_cdk import (
     aws_s3_deployment as s3_deployment,
     aws_cloudfront as cloudfront,
     aws_cloudfront_origins as origins,
+    aws_certificatemanager as acm,
+    aws_route53 as route53,
+    aws_route53_targets as route53_targets,
 )
 from constructs import Construct
 
@@ -35,9 +38,18 @@ class CustomerPortalStack(Stack):
         env_name: str = "prod",
         latest_table_name: str = "BrineTankLatest",
         readings_table_name: str = "BrineTankReadings",
+        domain_name: str = "portal.salty-water.com",
+        hosted_zone_id: str = "Z0371086XJXG1EVE52RU",
+        hosted_zone_name: str = "salty-water.com",
+        cors_allowed_origins: list | None = None,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # Browser origins allowed to call the API. Defaults to the portal's own
+        # domain only — never "*", so a logged-in customer's ID token can't be
+        # replayed from an arbitrary site.
+        cors_allowed_origins = cors_allowed_origins or [f"https://{domain_name}"]
 
         # ── Read-only handles to the backend stack's tables (import by name) ──
         latest_table = dynamodb.Table.from_table_name(self, "LatestTableRef", latest_table_name)
@@ -110,7 +122,7 @@ class CustomerPortalStack(Stack):
             self, "CustomerPortalHttpApi",
             api_name=f"CustomerPortalApi-{env_name}",
             cors_preflight=apigwv2.CorsPreflightOptions(
-                allow_origins=["*"],
+                allow_origins=cors_allowed_origins,
                 allow_methods=[apigwv2.CorsHttpMethod.GET],
                 allow_headers=["Authorization", "Content-Type"],
             ),
@@ -128,6 +140,22 @@ class CustomerPortalStack(Stack):
             authorizer=authorizer,
         )
 
+        # ── Custom domain (portal.salty-water.com) ─────────────────────────
+        # Zone is imported by id+name (no context lookup) so the stack stays
+        # environment-agnostic for `cdk synth`/tests.
+        hosted_zone = route53.HostedZone.from_hosted_zone_attributes(
+            self, "PortalHostedZone",
+            hosted_zone_id=hosted_zone_id,
+            zone_name=hosted_zone_name,
+        )
+        # CloudFront requires its ACM cert in us-east-1; this stack deploys
+        # there. DNS validation records are written into the zone above.
+        certificate = acm.Certificate(
+            self, "PortalCertificate",
+            domain_name=domain_name,
+            validation=acm.CertificateValidation.from_dns(hosted_zone),
+        )
+
         # ── Frontend hosting (S3 + CloudFront, private bucket via OAC) ──────
         site_bucket = s3.Bucket(
             self, "PortalSiteBucket",
@@ -138,6 +166,8 @@ class CustomerPortalStack(Stack):
         distribution = cloudfront.Distribution(
             self, "PortalDistribution",
             default_root_object="index.html",
+            domain_names=[domain_name],
+            certificate=certificate,
             default_behavior=cloudfront.BehaviorOptions(
                 origin=origins.S3BucketOrigin.with_origin_access_control(site_bucket),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -151,8 +181,26 @@ class CustomerPortalStack(Stack):
             distribution_paths=["/*"],
         )
 
+        # ── DNS: portal.salty-water.com → CloudFront (A + AAAA aliases) ─────
+        cf_target = route53.RecordTarget.from_alias(
+            route53_targets.CloudFrontTarget(distribution)
+        )
+        route53.ARecord(
+            self, "PortalAliasRecord",
+            zone=hosted_zone,
+            record_name=domain_name,
+            target=cf_target,
+        )
+        route53.AaaaRecord(
+            self, "PortalAliasRecordV6",
+            zone=hosted_zone,
+            record_name=domain_name,
+            target=cf_target,
+        )
+
         # ── Outputs (paste into frontend/.env before `npm run build`) ───────
         CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
         CfnOutput(self, "UserPoolClientId", value=user_pool_client.user_pool_client_id)
         CfnOutput(self, "ApiUrl", value=http_api.api_endpoint)
+        CfnOutput(self, "PortalUrl", value=f"https://{domain_name}")
         CfnOutput(self, "CloudFrontUrl", value=f"https://{distribution.distribution_domain_name}")

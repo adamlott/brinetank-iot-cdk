@@ -162,7 +162,7 @@ aws dynamodb get-item \
 
 ## Customer Portal Stack (CustomerPortalStack)
 
-The customer-facing salt-level portal is a separate stack from `BrinetankIotCdkStack` — it only ever reads `BrineTankLatest`/`BrineTankReadings` and owns its own Cognito user pool, `CustomerDevices` table, API, and frontend hosting.
+The customer-facing salt-level portal is a separate stack from `BrinetankIotCdkStack` — it only ever reads `BrineTankLatest`/`BrineTankReadings` and owns its own Cognito user pool, `CustomerDevices` table, API, and frontend hosting. It is served from `https://portal.salty-water.com` (CloudFront + ACM + a Route53 alias in the `salty-water.com` zone).
 
 ### 1. Build the frontend before deploying
 
@@ -181,7 +181,17 @@ cd ..
 cdk deploy CustomerPortalStack
 ```
 
-Note the outputs: `UserPoolId`, `UserPoolClientId`, `ApiUrl`, `CloudFrontUrl`. Copy the first three into `frontend/.env` (see `frontend/.env.example`) and re-run `npm run build` + `cdk deploy CustomerPortalStack` so the frontend is built with the right config.
+Must be deployed to **us-east-1** — CloudFront requires its ACM certificate in
+that region and the cert is created in this stack. The first deploy provisions
+an ACM certificate for `portal.salty-water.com` and validates it via DNS records
+written into the `salty-water.com` Route53 zone (`Z0371086XJXG1EVE52RU`); this
+can add a few minutes to the deploy while the certificate is issued.
+
+Note the outputs: `UserPoolId`, `UserPoolClientId`, `ApiUrl`, `PortalUrl`
+(`https://portal.salty-water.com`), and `CloudFrontUrl` (the raw
+`*.cloudfront.net` origin, still valid as a fallback). Copy the first three into
+`frontend/.env` (see `frontend/.env.example`) and re-run `npm run build` +
+`cdk deploy CustomerPortalStack` so the frontend is built with the right config.
 
 ### 3. Link a customer to a device
 

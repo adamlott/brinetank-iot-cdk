@@ -26,6 +26,13 @@ portal = CustomerPortalStack(
     env_name="prod",
     latest_table_name="BrineTankLatest",
     readings_table_name="BrineTankReadings",
+    domain_name="portal.salty-water.com",
+    hosted_zone_id="Z0371086XJXG1EVE52RU",
+    hosted_zone_name="salty-water.com",
+    cors_allowed_origins=[
+        "https://portal.salty-water.com",
+        "http://localhost:5173",  # Vite dev server, for local dev against the deployed API
+    ],
 )
 
 app.synth()
