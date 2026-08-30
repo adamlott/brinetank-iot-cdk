@@ -48,6 +48,7 @@ Prevents notification spam using:
 ### Data Retention
 - Historical readings auto-expire after 45 days (configurable TTL via `TTL_DAYS` env var on the ingest Lambda)
 - The customer portal's history view shows the most recent 30 days (configurable via `HISTORY_DAYS` env var on `CustomerPortalApi`)
+- The customer portal also shows salt-delivery order history (`GET /orders`), read from the `SaltDeliveryAppStack` orders table imported by name via the `ORDERS_TABLE_NAME` env var — read-only, filtered to the signed-in customer's email
 - Latest readings persist indefinitely for status checks
 - Alert state persists in configuration table
 - TTL changes only apply to newly-written readings — existing items keep whatever `ttl_epoch` was computed at write time

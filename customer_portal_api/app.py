@@ -1,7 +1,7 @@
 import os, json, boto3, logging
 from datetime import datetime, timedelta
 from decimal import Decimal
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Key, Attr
 
 dynamo = boto3.resource("dynamodb")
 log = logging.getLogger()
@@ -10,16 +10,27 @@ log.setLevel(logging.INFO)
 CUSTOMER_DEVICES_TABLE = os.getenv("CUSTOMER_DEVICES_TABLE", "CustomerDevices")
 LATEST_TABLE = os.getenv("LATEST_TABLE_NAME", "BrineTankLatest")
 HIST_TABLE = os.getenv("HIST_TABLE_NAME", "BrineTankReadings")
+# Salt-delivery orders table, owned by SaltDeliveryAppStack. Keyed only by
+# orderId, so per-customer lookup is a filtered Scan (see _list_orders).
+ORDERS_TABLE = os.getenv(
+    "ORDERS_TABLE_NAME", "SaltDeliveryAppStack-OrdersTable315BB997-155GNQAC1C57Y"
+)
 
 customer_devices = dynamo.Table(CUSTOMER_DEVICES_TABLE)
 latest = dynamo.Table(LATEST_TABLE)
 hist = dynamo.Table(HIST_TABLE)
+orders = dynamo.Table(ORDERS_TABLE)
 
 HISTORY_DAYS = int(os.getenv("HISTORY_DAYS", "30"))
 # Safety cap on a single request's row count (readings are ~120/day at the
 # real hourly-batch-of-5 cadence, so 30 days is normally ~3600 rows) —
 # guards against an unexpectedly chatty device exhausting the Lambda timeout.
 HISTORY_MAX_ITEMS = 10000
+
+# The orders table has no email index, so we Scan and filter. Orders are placed
+# by hand (tens per customer at most), so this is cheap; the cap only bounds a
+# pathologically large table so the Lambda can't time out mid-scan.
+ORDERS_MAX_ITEMS = 1000
 
 
 def _decimal_default(obj):
@@ -76,6 +87,28 @@ def _device_history(email, sensor_id):
     return items
 
 
+def _list_orders(email):
+    items = []
+    scan_kwargs = {"FilterExpression": Attr("email").eq(email)}
+    while True:
+        resp = orders.scan(**scan_kwargs)
+        items.extend(resp.get("Items", []))
+        last_key = resp.get("LastEvaluatedKey")
+        if not last_key or len(items) >= ORDERS_MAX_ITEMS:
+            break
+        scan_kwargs["ExclusiveStartKey"] = last_key
+
+    # Newest first by submission time. Orders written before SaltDeliveryApp
+    # started stamping `submittedAt` have no date, so they fall to the bottom
+    # (ordered by orderId only for stability). submittedAt is ISO 8601 UTC, so a
+    # lexical sort is chronological.
+    items.sort(
+        key=lambda o: (o.get("submittedAt", ""), o.get("orderId", "")),
+        reverse=True,
+    )
+    return items
+
+
 def handler(event, context):
     route = event.get("routeKey", "")
     email = _caller_email(event)
@@ -86,6 +119,9 @@ def handler(event, context):
     try:
         if route == "GET /devices":
             return _response(200, {"devices": _list_devices(email)})
+
+        if route == "GET /orders":
+            return _response(200, {"orders": _list_orders(email)})
 
         if route == "GET /devices/{sensorId}/history":
             sensor_id = event.get("pathParameters", {}).get("sensorId")

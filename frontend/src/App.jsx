@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { signIn, signUp, confirmSignUp, signOut, getCurrentIdToken } from "./auth";
-import { listDevices, getDeviceHistory } from "./api";
+import { listDevices, getDeviceHistory, listOrders } from "./api";
 import Sparkline from "./Sparkline.jsx";
 
 function AuthForm({ onSignedIn }) {
@@ -120,6 +120,61 @@ function DeviceCard({ device, idToken }) {
   );
 }
 
+const titleCase = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+// Orders placed before SaltDeliveryApp started stamping submittedAt have no date.
+function fmtOrderDate(v) {
+  if (!v) return "Date unknown";
+  const d = new Date(v);
+  return Number.isNaN(d.getTime())
+    ? "Date unknown"
+    : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function OrderHistory({ idToken }) {
+  const [orders, setOrders] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    listOrders(idToken)
+      .then((data) => setOrders(data.orders))
+      .catch((err) => setError(err.message || String(err)));
+  }, [idToken]);
+
+  if (error) return <div className="error">{error}</div>;
+  if (orders === null) return <div className="meta">Loading order history...</div>;
+  if (orders.length === 0) return null;
+
+  return (
+    <div className="card">
+      <h2>Order history</h2>
+      <div className="order-list">
+        {orders.map((o) => {
+          const bags = String(o.bags);
+          const where = [o.address, o.city, o.zipcode].filter(Boolean).join(", ");
+          return (
+            <div className="order" key={o.orderId}>
+              <div className="order-line">
+                <span className="order-what">
+                  {bags} {bags === "1" ? "bag" : "bags"} · {titleCase(o.saltType)}
+                </span>
+                <span className={`badge badge-${(o.status || "").toLowerCase()}`}>
+                  {titleCase(o.status) || "—"}
+                </span>
+              </div>
+              <div className="meta">
+                {fmtOrderDate(o.submittedAt)} ·{" "}
+                {o.frequency === "one-time" ? "One-time" : titleCase(o.frequency)}
+              </div>
+              {where && <div className="meta">{where}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Dashboard({ idToken, onSignOut }) {
   const [devices, setDevices] = useState(null);
   const [error, setError] = useState("");
@@ -142,6 +197,7 @@ function Dashboard({ idToken, onSignOut }) {
         devices.map((d) => (
           <DeviceCard key={d.device} device={d} idToken={idToken} />
         ))}
+      <OrderHistory idToken={idToken} />
       <button className="signout" onClick={onSignOut}>
         Log out
       </button>

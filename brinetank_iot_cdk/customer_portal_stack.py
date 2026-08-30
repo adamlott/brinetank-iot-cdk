@@ -25,9 +25,10 @@ FRONTEND_DIST_DIR = (PROJECT_ROOT / "frontend" / "dist").as_posix()
 class CustomerPortalStack(Stack):
     """Read-only customer-facing portal: Cognito auth + HTTP API + S3/CloudFront frontend.
 
-    Only ever reads BrineTankLatest/BrineTankReadings (imported by name, not by
-    construct, so this stack has zero CloudFormation coupling to
-    BrinetankIotCdkStack and both stacks can be deployed/destroyed independently).
+    Only ever reads BrineTankLatest/BrineTankReadings and the salt-delivery
+    orders table (all imported by name, not by construct, so this stack has zero
+    CloudFormation coupling to the stacks that own them and everything can be
+    deployed/destroyed independently).
     """
 
     def __init__(
@@ -38,6 +39,7 @@ class CustomerPortalStack(Stack):
         env_name: str = "prod",
         latest_table_name: str = "BrineTankLatest",
         readings_table_name: str = "BrineTankReadings",
+        orders_table_name: str = "SaltDeliveryAppStack-OrdersTable315BB997-155GNQAC1C57Y",
         domain_name: str = "portal.salty-water.com",
         hosted_zone_id: str = "Z0371086XJXG1EVE52RU",
         hosted_zone_name: str = "salty-water.com",
@@ -54,6 +56,9 @@ class CustomerPortalStack(Stack):
         # ── Read-only handles to the backend stack's tables (import by name) ──
         latest_table = dynamodb.Table.from_table_name(self, "LatestTableRef", latest_table_name)
         readings_table = dynamodb.Table.from_table_name(self, "ReadingsTableRef", readings_table_name)
+        # Salt-delivery orders, owned by SaltDeliveryAppStack. Imported by name,
+        # read-only, to back the portal's order-history view.
+        orders_table = dynamodb.Table.from_table_name(self, "OrdersTableRef", orders_table_name)
 
         # ── Tenant → device mapping (owned by this stack) ─────────────────────
         customer_devices = dynamodb.Table(
@@ -100,6 +105,7 @@ class CustomerPortalStack(Stack):
                 "CUSTOMER_DEVICES_TABLE": customer_devices.table_name,
                 "LATEST_TABLE_NAME": latest_table.table_name,
                 "HIST_TABLE_NAME": readings_table.table_name,
+                "ORDERS_TABLE_NAME": orders_table.table_name,
                 "HISTORY_DAYS": "30",
             },
         )
@@ -107,6 +113,7 @@ class CustomerPortalStack(Stack):
         # Read-only grants only — never grant write access to backend data from here.
         latest_table.grant_read_data(portal_api_fn)
         readings_table.grant_read_data(portal_api_fn)
+        orders_table.grant_read_data(portal_api_fn)
         customer_devices.grant_read_data(portal_api_fn)
 
         # ── HTTP API + Cognito authorizer ───────────────────────────────────
@@ -135,6 +142,12 @@ class CustomerPortalStack(Stack):
         )
         http_api.add_routes(
             path="/devices/{sensorId}/history",
+            methods=[apigwv2.HttpMethod.GET],
+            integration=integration,
+            authorizer=authorizer,
+        )
+        http_api.add_routes(
+            path="/orders",
             methods=[apigwv2.HttpMethod.GET],
             integration=integration,
             authorizer=authorizer,

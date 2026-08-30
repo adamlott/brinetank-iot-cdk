@@ -26,6 +26,7 @@ portal = CustomerPortalStack(
     env_name="prod",
     latest_table_name="BrineTankLatest",
     readings_table_name="BrineTankReadings",
+    orders_table_name="SaltDeliveryAppStack-OrdersTable315BB997-155GNQAC1C57Y",
     domain_name="portal.salty-water.com",
     hosted_zone_id="Z0371086XJXG1EVE52RU",
     hosted_zone_name="salty-water.com",

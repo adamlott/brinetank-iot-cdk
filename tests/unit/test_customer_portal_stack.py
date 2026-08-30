@@ -56,6 +56,14 @@ def test_serves_from_custom_domain():
     )
 
 
+def test_orders_route_present():
+    """Portal exposes read-only salt-delivery order history at GET /orders."""
+    template = _synth()
+    template.has_resource_properties(
+        "AWS::ApiGatewayV2::Route", {"RouteKey": "GET /orders"}
+    )
+
+
 def test_portal_lambda_role_has_no_write_actions():
     """The whole point of a separate stack is that it can never write to
     backend data. Assert the synthesized IAM policy grants no write actions."""

@@ -133,6 +133,60 @@ button.link:hover {
   font-weight: 700;
 }
 
+.order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.order {
+  border-top: 2px dashed var(--coral);
+  padding-top: 0.9rem;
+}
+
+.order:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.order-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.order-what {
+  font-family: "Baloo 2", system-ui, sans-serif;
+  font-weight: 700;
+}
+
+.badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.5rem;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--coral);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.badge-delivered {
+  background: #cde9d2;
+}
+
+.badge-shipped {
+  background: var(--yellow);
+}
+
+.badge-cancelled {
+  background: #e9cdcd;
+}
+
 .signout {
   background: none;
   border: none;

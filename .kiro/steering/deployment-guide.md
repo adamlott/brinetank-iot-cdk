@@ -162,7 +162,9 @@ aws dynamodb get-item \
 
 ## Customer Portal Stack (CustomerPortalStack)
 
-The customer-facing salt-level portal is a separate stack from `BrinetankIotCdkStack` — it only ever reads `BrineTankLatest`/`BrineTankReadings` and owns its own Cognito user pool, `CustomerDevices` table, API, and frontend hosting. It is served from `https://portal.salty-water.com` (CloudFront + ACM + a Route53 alias in the `salty-water.com` zone).
+The customer-facing salt-level portal is a separate stack from `BrinetankIotCdkStack` — it only ever reads `BrineTankLatest`/`BrineTankReadings` plus the `SaltDeliveryAppStack` orders table (all imported by name), and owns its own Cognito user pool, `CustomerDevices` table, API, and frontend hosting. It is served from `https://portal.salty-water.com` (CloudFront + ACM + a Route53 alias in the `salty-water.com` zone).
+
+API routes: `GET /devices`, `GET /devices/{sensorId}/history`, and `GET /orders` (salt-delivery order history, filtered to the caller's email, newest first by `submittedAt`). The orders table name is passed via the `orders_table_name` stack parameter / `ORDERS_TABLE_NAME` Lambda env var.
 
 ### 1. Build the frontend before deploying
 
@@ -223,6 +225,7 @@ Take `IdToken` from the response, then:
 
 ```powershell
 curl -H "Authorization: Bearer <IdToken>" "<ApiUrl>/devices"
+curl -H "Authorization: Bearer <IdToken>" "<ApiUrl>/orders"
 ```
 
 ## Environment-Specific Deployments
