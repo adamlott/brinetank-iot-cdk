@@ -491,11 +491,32 @@
         reuses them.
       </p>
 
-      <h3>1.1 — Thing type &amp; thing group</h3>
-      <p>Gives every sensor a common type and makes it possible to query or bulk-manage "all brine tank sensors" later.</p>
-      <pre><code><span class="c"># run once</span>
-aws iot create-thing-type --thing-type-name BrineTankSensor
+      <h3>1.1 — Thing types &amp; thing group</h3>
+      <p>
+        One thing type per hardware platform, not one generic type — it's what lets you query
+        "how many Zero&nbsp;2&nbsp;Ws are actually in the field" and gate new-device provisioning
+        to platforms you've actually cleared, via each type's <code>searchableAttributes</code>.
+      </p>
+      <pre><code><span class="c"># the currently functional platform — new devices provision onto this one</span>
+aws iot create-thing-type --thing-type-name RaspberryPiZero2W --thing-type-properties '{
+  "thingTypeDescription": "Raspberry Pi Zero 2 W - quad-core Cortex-A53 @1GHz, 512MB RAM. Currently functional BrineTank sensor platform.",
+  "searchableAttributes": ["ramMb", "sensorCompat", "status"]
+}'
+
+<span class="c"># a candidate platform — not yet cleared for new installs</span>
+aws iot create-thing-type --thing-type-name RaspberryPi3APlus --thing-type-properties '{
+  "thingTypeDescription": "Raspberry Pi 3 Model A+ - quad-core Cortex-A53 @1.4GHz, 512MB RAM. Candidate BrineTank sensor platform (not yet deployed).",
+  "searchableAttributes": ["ramMb", "sensorCompat", "status"]
+}'
+
 aws iot create-thing-group --thing-group-name brine-tank-sensors</code></pre>
+      <table>
+        <tr><th>Thing type</th><th>Status</th><th>Use for new devices?</th></tr>
+        <tr><td><code>RaspberryPiZero2W</code></td><td style="color:var(--accent)">Currently functional</td><td><strong>Yes — the default</strong></td></tr>
+        <tr><td><code>RaspberryPi3APlus</code></td><td>Candidate, not yet deployed</td><td>Not yet — wait for sign-off</td></tr>
+        <tr><td><code>RaspberryPiPico2w</code></td><td style="color:var(--danger)">Deprecated</td><td>No — a retired prototype platform</td></tr>
+        <tr><td><code>BrineTankSensor</code></td><td>Generic, pre-dates the per-platform types</td><td>No — superseded; one early device is still registered under it</td></tr>
+      </table>
 
       <h3>1.2 — Production IoT policy</h3>
       <p>
@@ -547,22 +568,35 @@ aws iam attach-role-policy --role-name BrineTankProvisioningRole \
 
       <h3>1.4 — The provisioning template</h3>
       <p>
-        This is the actual "recipe": given a <code>SerialNumber</code> parameter, create a Thing
-        named after it, put it in the right group, and attach the production policy above.
+        This is the actual "recipe": given a <code>SerialNumber</code>, create a Thing named
+        after it, put it in the right group, and attach the production policy above.
+        <code>Platform</code> picks the thing type and defaults to
+        <code>RaspberryPiZero2W</code> — the pre-provisioning hook below overrides it (and the
+        hardware attributes) from the allow-list, so a device can't just claim to be whatever
+        platform it likes.
       </p>
       <div class="code-label">provisioning-template.json</div>
       <pre><code>{
   "Parameters": {
-    "SerialNumber": { "Type": "String" }
+    "SerialNumber": { "Type": "String" },
+    "Platform": { "Type": "String", "Default": "RaspberryPiZero2W" },
+    "RamMb": { "Type": "String", "Default": "512" },
+    "SensorCompat": { "Type": "String", "Default": "A02YYUW" }
   },
   "Resources": {
     "thing": {
       "Type": "AWS::IoT::Thing",
       "Properties": {
         "ThingName": { "Fn::Join": ["", ["BrineTank-", { "Ref": "SerialNumber" }]] },
-        "ThingTypeName": "BrineTankSensor",
+        "ThingTypeName": { "Ref": "Platform" },
         "ThingGroups": ["brine-tank-sensors"],
-        "AttributePayload": { "version": "v1", "serialNumber": { "Ref": "SerialNumber" } }
+        "AttributePayload": {
+          "version": "v1",
+          "serialNumber": { "Ref": "SerialNumber" },
+          "ramMb": { "Ref": "RamMb" },
+          "sensorCompat": { "Ref": "SensorCompat" },
+          "status": "functional"
+        }
       }
     },
     "certificate": {
@@ -584,17 +618,28 @@ aws iam attach-role-policy --role-name BrineTankProvisioningRole \
   --template-body file://provisioning-template.json \
   --enabled</code></pre>
 
-      <h3>1.5 — Optional: validate the serial number before provisioning</h3>
+      <h3>1.5 — Validate the serial number, and hand back its real platform</h3>
       <p>
-        A pre-provisioning hook is a Lambda AWS IoT calls before it honors a registration request —
-        a natural fit since you already have Lambda in this pipeline. Check the serial number
-        against an allow-list (a small DynamoDB table works fine) so a leaked claim certificate
-        can't be used to register a device you never assigned an ID to.
+        A pre-provisioning hook is a Lambda AWS IoT calls before it honors a registration
+        request — a natural fit since you already have Lambda in this pipeline. Check the
+        serial number against an allow-list (a small DynamoDB table works fine) so a leaked
+        claim certificate can't be used to register a device you never assigned an ID to —
+        and return that same record's platform/RAM/sensor as <code>parameterOverrides</code>,
+        so the device's own claim about its hardware is never what decides its thing type.
       </p>
       <pre><code><span class="k">def</span> lambda_handler(event, context):
     serial = event["parameters"].get("SerialNumber", "")
-    allowed = serial <span class="k">in</span> known_serials()  <span class="c"># e.g. a DynamoDB lookup</span>
-    <span class="k">return</span> {"allowProvisioning": allowed}</code></pre>
+    record = known_serials().get(serial)  <span class="c"># e.g. a DynamoDB lookup</span>
+    <span class="k">if</span> record <span class="k">is</span> <span class="k">None</span>:
+        <span class="k">return</span> {"allowProvisioning": False}
+    <span class="k">return</span> {
+        "allowProvisioning": True,
+        "parameterOverrides": {
+            "Platform": record["platform"],  <span class="c"># e.g. "RaspberryPiZero2W"</span>
+            "RamMb": record["ramMb"],
+            "SensorCompat": record["sensorCompat"],
+        },
+    }</code></pre>
       <pre><code>aws iot create-provisioning-template \
   --template-name BrineTankProvisioning \
   --provisioning-role-arn arn:aws:iam::&lt;account-id&gt;:role/BrineTankProvisioningRole \
@@ -757,13 +802,21 @@ aws iot delete-thing --thing-name BrineTank-&lt;id&gt;</code></pre>
   provisioningRoleArn: provisioningRole.roleArn,
   enabled: <span class="k">true</span>,
   templateBody: JSON.stringify({
-    Parameters: { SerialNumber: { Type: 'String' } },
+    Parameters: {
+      SerialNumber: { Type: 'String' },
+      Platform: { Type: 'String', Default: 'RaspberryPiZero2W' },
+      RamMb: { Type: 'String', Default: '512' },
+      SensorCompat: { Type: 'String', Default: 'A02YYUW' },
+    },
     Resources: {
       thing: { Type: 'AWS::IoT::Thing', Properties: {
         ThingName: { 'Fn::Join': ['', ['BrineTank-', { Ref: 'SerialNumber' }]] },
-        ThingTypeName: 'BrineTankSensor',
+        ThingTypeName: { Ref: 'Platform' },
         ThingGroups: ['brine-tank-sensors'],
-        AttributePayload: { version: 'v1', serialNumber: { Ref: 'SerialNumber' } },
+        AttributePayload: {
+          version: 'v1', serialNumber: { Ref: 'SerialNumber' },
+          ramMb: { Ref: 'RamMb' }, sensorCompat: { Ref: 'SensorCompat' }, status: 'functional',
+        },
       }},
       certificate: { Type: 'AWS::IoT::Certificate', Properties: {
         CertificateId: { Ref: 'AWS::IoT::Certificate::Id' }, Status: 'Active',
