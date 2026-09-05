@@ -23,6 +23,12 @@ Thumbs.db
 # Build artifacts
 *.zip
 
+# Raspberry Pi SD-card captures / golden images (large binaries — never commit)
+*.img
+*.img.gz
+*.img.xz
+PiZero2wGoldenImage
+
 # Local credentials/secrets (DO NOT COMMIT)
 # (These dirs/files are examples—add any real paths you use)
 certs/

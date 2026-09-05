@@ -1,0 +1,28 @@
+{
+  "Parameters": { "SerialNumber": { "Type": "String" } },
+  "Resources": {
+    "thing": {
+      "Type": "AWS::IoT::Thing",
+      "Properties": {
+        "ThingName": { "Fn::Join": ["", ["BrineTank-", { "Ref": "SerialNumber" }]] },
+        "ThingTypeName": "RaspberryPiZero2W",
+        "ThingGroups": ["brine-tank-sensors"],
+        "AttributePayload": {
+          "version": "v1",
+          "serialNumber": { "Ref": "SerialNumber" },
+          "ramMb": "512",
+          "sensorCompat": "A02YYUW",
+          "status": "functional"
+        }
+      }
+    },
+    "certificate": {
+      "Type": "AWS::IoT::Certificate",
+      "Properties": { "CertificateId": { "Ref": "AWS::IoT::Certificate::Id" }, "Status": "Active" }
+    },
+    "policy": {
+      "Type": "AWS::IoT::Policy",
+      "Properties": { "PolicyName": "BrineTankSensorPolicy" }
+    }
+  }
+}
