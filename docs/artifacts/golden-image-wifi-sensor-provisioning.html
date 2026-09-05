@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style></head><body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<title>Golden Image: WiFi &amp; Sensor Provisioning</title>
+
+<style>
+  :root {
+    --bg: #eef1ee;
+    --surface: #ffffff;
+    --ink: #16262a;
+    --ink-soft: #47585a;
+    --accent: #2f6f63;
+    --accent-ink: #ffffff;
+    --accent-soft: #dbe9e3;
+    --accent-2: #a06f2c;
+    --accent-2-soft: #ecdfc4;
+    --line: #d1d9d4;
+    --code-bg: #12201f;
+    --code-ink: #d9ece5;
+    --code-dim: #7f9d94;
+    --code-accent: #7fd9c4;
+    --danger: #a8432f;
+    --danger-soft: #f1ded8;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1613;
+      --surface: #152420;
+      --ink: #e3ece8;
+      --ink-soft: #9db2ac;
+      --accent: #74c6b1;
+      --accent-ink: #0e1613;
+      --accent-soft: rgba(116, 198, 177, 0.14);
+      --accent-2: #d9ab68;
+      --accent-2-soft: rgba(217, 171, 104, 0.14);
+      --line: #26433b;
+      --code-bg: #0a1412;
+      --code-ink: #d9ece5;
+      --code-dim: #6f8d85;
+      --code-accent: #8fe3cc;
+      --danger: #d9836c;
+      --danger-soft: rgba(217, 131, 108, 0.14);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0e1613;
+    --surface: #152420;
+    --ink: #e3ece8;
+    --ink-soft: #9db2ac;
+    --accent: #74c6b1;
+    --accent-ink: #0e1613;
+    --accent-soft: rgba(116, 198, 177, 0.14);
+    --accent-2: #d9ab68;
+    --accent-2-soft: rgba(217, 171, 104, 0.14);
+    --line: #26433b;
+    --code-bg: #0a1412;
+    --code-ink: #d9ece5;
+    --code-dim: #6f8d85;
+    --code-accent: #8fe3cc;
+    --danger: #d9836c;
+    --danger-soft: rgba(217, 131, 108, 0.14);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3 {
+    font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+    font-weight: 700;
+    text-wrap: balance;
+    line-height: 1.15;
+    color: var(--ink);
+  }
+
+  a { color: var(--accent); }
+
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 5rem;
+    display: grid;
+    grid-template-columns: 210px minmax(0, 720px);
+    gap: 3rem;
+    align-items: start;
+  }
+
+  header.hero {
+    grid-column: 1 / -1;
+    padding-bottom: 1.75rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 0.5rem;
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1.title {
+    font-size: clamp(1.9rem, 3.4vw, 2.6rem);
+    margin: 0.35rem 0 0.6rem;
+  }
+
+  .dek {
+    color: var(--ink-soft);
+    max-width: 64ch;
+    font-size: 1.05rem;
+    margin: 0;
+  }
+
+  .crumb {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    margin: 0.6rem 0 0;
+  }
+
+  nav.toc {
+    position: sticky;
+    top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.83rem;
+  }
+
+  nav.toc a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    padding: 0.32rem 0.5rem;
+    border-left: 2px solid transparent;
+    border-radius: 2px;
+  }
+
+  nav.toc a:hover {
+    color: var(--ink);
+    background: var(--accent-soft);
+    border-left-color: var(--accent);
+  }
+
+  nav.toc .toc-label {
+    font-family: "IBM Plex Sans Condensed", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    margin: 0 0 0.4rem 0.5rem;
+  }
+
+  main { min-width: 0; }
+
+  section { margin-bottom: 3rem; scroll-margin-top: 1.5rem; }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.74rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.22rem 0.6rem;
+    border-radius: 999px;
+    margin-bottom: 0.7rem;
+  }
+
+  .tag.once { background: var(--accent-2-soft); color: var(--accent-2); }
+  .tag.repeat { background: var(--accent-soft); color: var(--accent); }
+
+  h2 {
+    font-size: 1.5rem;
+    margin: 0 0 0.3rem;
+    padding-top: 0.2rem;
+  }
+
+  h2 .num { color: var(--ink-soft); font-weight: 500; margin-right: 0.4rem; }
+
+  section > p.lede { color: var(--ink-soft); margin-top: 0.4rem; max-width: 66ch; }
+
+  h3 { font-size: 1.02rem; margin: 1.6rem 0 0.5rem; color: var(--ink); }
+
+  p { max-width: 68ch; }
+
+  .step-list {
+    list-style: none;
+    margin: 0.8rem 0;
+    padding: 0;
+    counter-reset: step;
+    border-left: 2px solid var(--line);
+  }
+
+  .step-list > li {
+    counter-increment: step;
+    position: relative;
+    padding: 0.1rem 0 1.3rem 1.6rem;
+  }
+
+  .step-list > li::before {
+    content: counter(step);
+    position: absolute;
+    left: -0.94rem;
+    top: -0.05rem;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .step-list > li > strong {
+    display: block;
+    font-family: "IBM Plex Sans Condensed", sans-serif;
+    font-weight: 600;
+    font-size: 1.02rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .step-list > li > p { margin: 0.2rem 0 0; color: var(--ink-soft); }
+
+  .checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0.8rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .checklist > li { display: flex; gap: 0.65rem; align-items: baseline; padding: 0.15rem 0; }
+
+  .checklist > li::before {
+    content: "";
+    flex: none;
+    width: 0.85rem;
+    height: 0.85rem;
+    margin-top: 0.28rem;
+    border-radius: 3px;
+    border: 2px solid var(--accent-2);
+  }
+
+  .checklist strong { font-family: "IBM Plex Sans Condensed", sans-serif; font-weight: 600; }
+
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.83rem;
+    line-height: 1.55;
+    margin: 0.7rem 0 1.1rem;
+  }
+
+  pre .c { color: var(--code-dim); }
+  pre .k { color: var(--code-accent); }
+
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.87em;
+    background: var(--accent-soft);
+    color: var(--ink);
+    padding: 0.08em 0.35em;
+    border-radius: 4px;
+  }
+
+  pre code { background: none; padding: 0; color: inherit; }
+
+  .code-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin: 1rem 0 -0.3rem;
+  }
+
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    align-items: stretch;
+    margin: 1.2rem 0 1.6rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  .flow .step {
+    flex: 1 1 140px;
+    padding: 0.9rem 1rem;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .flow .step:last-child { border-right: none; }
+  .flow .step .n { font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; color: var(--accent); }
+  .flow .step .t { font-family: "IBM Plex Sans Condensed", sans-serif; font-weight: 600; font-size: 0.92rem; }
+  .flow .step .d { font-size: 0.78rem; color: var(--ink-soft); }
+
+  .note {
+    border-left: 3px solid var(--accent-2);
+    background: var(--accent-2-soft);
+    padding: 0.75rem 1rem;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.92rem;
+    margin: 1rem 0;
+  }
+
+  .note strong { font-family: "IBM Plex Sans Condensed", sans-serif; }
+
+  .danger-note {
+    border-left: 3px solid var(--danger);
+    background: var(--danger-soft);
+    padding: 0.75rem 1rem;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.92rem;
+    margin: 1rem 0;
+  }
+
+  .danger-note strong { font-family: "IBM Plex Sans Condensed", sans-serif; }
+
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0 1.2rem; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line); }
+  th {
+    font-family: "IBM Plex Sans Condensed", sans-serif;
+    color: var(--ink-soft);
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .refs { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.9rem; }
+
+  .file-tree {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.85rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+    margin: 0.8rem 0 1.2rem;
+    line-height: 1.7;
+  }
+  .file-tree .d { color: var(--ink-soft); }
+
+  footer {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line);
+    padding-top: 1.2rem;
+    margin-top: 1rem;
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    nav.toc {
+      position: static;
+      flex-direction: row;
+      overflow-x: auto;
+      gap: 0.2rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 1.5rem;
+    }
+    nav.toc .toc-label { display: none; }
+    nav.toc a { white-space: nowrap; border-left: none; border-bottom: 2px solid transparent; }
+    nav.toc a:hover { border-left: none; border-bottom-color: var(--accent); }
+  }
+</style>
+
+<div class="shell">
+  <header class="hero">
+    <div class="eyebrow">Ops runbook — Raspberry Pi imaging</div>
+    <h1 class="title">Golden Image: WiFi &amp; Sensor Provisioning</h1>
+    <p class="dek">
+      Today, joining a new Pi to wifi means SSHing in over Ethernet or a keyboard/monitor to hand-edit
+      network config. This runbook replaces that with a self-provisioning image: on first power-up, if
+      the Pi doesn't recognize any wifi network, it broadcasts its own hotspot with a captive portal —
+      connect with a phone, pick the real network, done. The same image already has the distance
+      sensor driver installed and a scheduled job publishing readings to AWS IoT Core.
+    </p>
+    <p class="crumb">Companion to the <a href="https://claude.ai/code/artifact/7c16a62f-3f5d-427a-b45a-1a3a6266c0c9">AWS IoT device onboarding runbook</a> — that one registers a device with AWS; this one gets it onto your network and reading the tank in the first place.</p>
+  </header>
+
+  <nav class="toc">
+    <div class="toc-label">On this page</div>
+    <a href="#overview">Overview</a>
+    <a href="#whatsinside">What's in the image</a>
+    <a href="#phasea">Phase A · Build it once</a>
+    <a href="#phaseb">Phase B · Flash a device</a>
+    <a href="#verify">Verification</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security notes</a>
+    <a href="#refs">References</a>
+  </nav>
+
+  <main>
+
+    <section id="overview">
+      <h2>Overview</h2>
+      <p class="lede">Three ways to get wifi credentials onto a headless Pi. Only one needs neither a screen nor a cable.</p>
+      <table>
+        <tr><th>Approach</th><th>How it works</th><th>Fits you?</th></tr>
+        <tr>
+          <td>Manual (current)</td>
+          <td>SSH in over Ethernet or a monitor/keyboard, edit network config by hand</td>
+          <td style="color:var(--danger)">What you're doing now — needs physical access every time</td>
+        </tr>
+        <tr>
+          <td>Pre-seed credentials in the image</td>
+          <td>Bake one wifi network's SSID/password into every SD card before flashing</td>
+          <td>Breaks the moment the tank's router or password changes</td>
+        </tr>
+        <tr>
+          <td><strong>Self-provisioning hotspot</strong></td>
+          <td>Device broadcasts its own AP + captive portal only when it has no known network to join</td>
+          <td style="color:var(--accent)"><strong>This is what you asked for</strong></td>
+        </tr>
+      </table>
+      <p>
+        The tool doing the actual work is <a href="https://github.com/davesteele/comitup">comitup</a> —
+        purpose-built for exactly this: no known wifi → open an AP named <code>comitup-&lt;nnn&gt;</code>
+        with a captive portal; join it from a phone or laptop, pick the real network, enter its
+        password → comitup joins it, drops the AP, and remembers it for next time. It requires
+        NetworkManager, which is why the target OS is Bookworm rather than an older release. Building a
+        captive portal from scratch (hostapd + dnsmasq + a custom web form + per-OS captive-portal
+        detection quirks) was considered and rejected — comitup already solves that reliably and is
+        actively maintained.
+      </p>
+    </section>
+
+    <section id="whatsinside">
+      <h2>What's in the image</h2>
+      <div class="file-tree"><span class="d"># laid down by provision-image.sh</span>
+comitup                          <span class="d"># wifi AP fallback + captive portal, NetworkManager-based</span>
+/opt/brine-sensor/
+  DFRobot_RaspberryPi_A02YYUW/   <span class="d"># your existing sensor driver, unmodified</span>
+  a02yyuw_iot.py                <span class="d"># your existing publish script, unmodified</span>
+  comitup-callback.sh           <span class="d"># starts the sensor timer whenever wifi connects</span>
+  device.env                    <span class="d"># per-device config -- filled in during AWS onboarding</span>
+  set-hostname-from-serial.sh   <span class="d"># names this device from its own CPU serial -- see below</span>
+/etc/systemd/system/
+  brine-sensor.service          <span class="d"># runs a02yyuw_iot.py once (oneshot), gated -- see below</span>
+  brine-sensor.timer            <span class="d"># fires the service on a schedule -- replaces the crontab entry</span>
+  nightly-reboot.service        <span class="d"># reboots the Pi -- see note below</span>
+  nightly-reboot.timer          <span class="d"># fires it once a day, ~03:00 system time</span>
+  set-hostname-from-serial.service <span class="d"># runs the script above on every boot</span>
+/etc/comitup.conf                <span class="d"># external_callback = .../comitup-callback.sh</span></div>
+      <p>
+        Your sensor driver and publish script are carried over exactly as they run today — nothing
+        about how they read the sensor or talk to AWS IoT changed. A few things did change on the OS
+        side: the cron entry became a systemd timer (same cadence, but now visible to
+        <code>systemctl status</code> / <code>journalctl</code> instead of a silent cron log), the
+        UART needs one-time configuration for the A02YYUW to be reachable at all (see the note below),
+        and the device now reboots nightly.
+      </p>
+      <div class="note">
+        <strong>Why the UART config matters.</strong> The A02YYUW driver opens <code>/dev/ttyAMA0</code>
+        directly. On a stock Pi, that device is claimed by Bluetooth, and the pins on the header are the
+        secondary UART instead — so without this, the driver either can't open the port or reads from
+        the wrong pins entirely. <code>provision-image.sh</code> sets <code>dtoverlay=disable-bt</code>
+        so <code>/dev/ttyAMA0</code> is the one wired to GPIO14/15, and turns off the login console on
+        that UART so it isn't fighting the sensor for bytes.
+      </div>
+      <div class="note">
+        <strong>Why the nightly reboot.</strong> In testing, the A02YYUW's readings drifted inaccurate
+        after a few days of continuous uptime; rebooting nightly was the fix that worked, so it's baked
+        into the image rather than left as a manual habit. <code>nightly-reboot.timer</code> fires
+        <code>/sbin/reboot</code> around 03:00 in whatever timezone the Pi is set to (Raspberry Pi OS
+        defaults to UTC unless you set one) — check with <code>timedatectl</code> if you want it landing
+        at 3am your local time specifically, and adjust <code>OnCalendar=</code> in the timer unit if
+        you'd rather it fire at a different hour.
+      </div>
+
+      <h3>Naming a device: automatic, from its own hardware — no customer step</h3>
+      <p>
+        The device's hostname is the one identifier used everywhere downstream: it becomes the AWS IoT
+        device ID, the AWS IoT thing name, the MQTT topic, and — since telemetry is written to DynamoDB
+        keyed on it — the partition key on every row it produces. Since a customer setting this up
+        shouldn't have to invent a name (or touch SSH at all), each device names itself: on every boot,
+        <code>set-hostname-from-serial.service</code> reads this specific Pi's unique CPU serial number
+        out of <code>/proc/cpuinfo</code> — burned into the hardware at manufacture, so it's guaranteed
+        different on every board even though every device runs the exact same <code>golden.img</code> —
+        and sets the hostname to <code>brine-&lt;that serial&gt;</code> (e.g.
+        <code>brine-1000000012345678</code>). It's idempotent (a no-op once the hostname already
+        matches), so it's safe to enable unconditionally on every boot rather than gating it on "first
+        boot only."
+      </p>
+      <p>
+        The customer's entire interaction is picking a wifi network and entering its password — nothing
+        about naming ever surfaces to them. On your side, this means you don't type a hostname in either;
+        instead you look one up when it's time to register the device with AWS (see Phase B below).
+      </p>
+      <div class="note">
+        <strong>Two things this deliberately doesn't do.</strong> It doesn't try to patch Raspberry Pi
+        Imager's own Customisation step back to life for custom images — that's
+        <a href="https://github.com/raspberrypi/rpi-imager/issues/1377">disabled upstream</a> and out of
+        our control. And it doesn't build a custom captive-portal naming page (an earlier design this
+        runbook used did exactly that) — that would mean patching comitup's own web templates or hosting
+        a second page the customer has to know to look for, for a problem the hardware serial already
+        solves with zero UI at all. comitup's <code>external_callback</code> hook is still used, just
+        for something smaller: making sure the sensor timer is running whenever wifi connects.
+      </div>
+      <div class="note">
+        <strong>Want a friendlier name for your own SSH use?</strong> Nothing stops you from renaming a
+        device later with <code>sudo raspi-config nonint do_hostname &lt;name&gt;</code> for your own
+        convenience — just know that's purely local. The AWS identity (thing name, DynamoDB key) is
+        fixed to whatever hostname existed at the moment you ran <code>onboard-device.sh</code>; renaming
+        the Pi afterward doesn't change what's already in AWS.
+      </div>
+    </section>
+
+    <section id="phasea">
+      <span class="tag once">Do once</span>
+      <h2><span class="num">A</span>Build the golden image</h2>
+      <p class="lede">You do this once, on one reference Pi, to produce a <code>golden.img</code> file you'll reuse for every future device.</p>
+
+      <div class="note">
+        <strong>Target hardware: Raspberry Pi Zero 2 W.</strong> Cheapest board that does the job — but
+        it has no Ethernet jack, only onboard wifi (plus a USB OTG data port). The steps below get the
+        one-time build run online without one.
+      </div>
+
+      <ol class="step-list">
+        <li>
+          <strong>Flash Raspberry Pi OS Bookworm Lite (64-bit)</strong>
+          <p>Use Raspberry Pi Imager. In the Customisation step: set a hostname (anything's fine for this
+          reference Pi — <code>sanitize-for-imaging.sh</code> resets it before capture anyway), enable SSH
+          (key-based is fine), set a username/password — <strong>and this one time only</strong>, also
+          fill in <em>Configure wireless LAN</em> with your real home network. This reference Pi needs
+          internet access to install packages; devices flashed from the finished image never will, and
+          <code>sanitize-for-imaging.sh</code> (step 5) wipes this network back out before you capture
+          the image, so it never ships in <code>golden.img</code>.</p>
+        </li>
+        <li>
+          <strong>Boot it and SSH in over your home wifi</strong>
+          <p>No cable needed. Find its address from your router's client list, or
+          <code>ping &lt;hostname&gt;.local</code> from your laptop.</p>
+        </li>
+        <li>
+          <strong>Copy over and run the provisioning script</strong>
+          <pre><code>scp provision-image.sh pi@&lt;ip&gt;:~
+ssh pi@&lt;ip&gt;
+sudo TARGET_USER=pi ./provision-image.sh</code></pre>
+          <p>Installs comitup, fixes the UART, deploys the driver + publish script (embedded in the
+          script itself, nothing to git clone), and installs the systemd timer — enabled but not yet
+          started, since <code>device.env</code> still has placeholder values.</p>
+        </li>
+        <li>
+          <strong>Verify comitup, then verify the sensor</strong>
+          <p>See the <a href="#verify">verification checklist</a> below — do this before capturing the
+          image, not after, or you'll be debugging blind on every future device.</p>
+        </li>
+        <li>
+          <strong>Sanitize, then power off</strong>
+          <pre><code>sudo ./sanitize-for-imaging.sh
+sudo poweroff</code></pre>
+          <p>Strips SSH host keys, the machine-id, your build-time home wifi credential from step 1, any
+          other networks comitup learned during testing, and any test AWS certificate — so devices
+          cloned from this image don't all share one identity, and none of them ship with your real
+          wifi password.</p>
+        </li>
+        <li>
+          <strong>Capture the SD card as golden.img</strong>
+          <p>On Windows: <a href="https://sourceforge.net/projects/win32diskimager/">Win32 Disk Imager</a>
+          → <em>Read</em> → point it at the SD card → save as <code>golden.img</code>. Optional: shrink
+          the result with <a href="https://github.com/Drewsif/PiShrink">PiShrink</a> (needs a Linux
+          environment — WSL works) so the file isn't the full card size before you archive it.</p>
+        </li>
+      </ol>
+
+      <div class="note">
+        <strong>Would rather not type your real wifi password into Imager, even temporarily?</strong>
+        The Zero 2 W's USB data port (labeled <code>USB</code>, not <code>PWR</code>) supports OTG
+        gadget networking: add <code>dtoverlay=dwc2</code> to <code>config.txt</code> and
+        <code>modules-load=dwc2,g_ether</code> to <code>cmdline.txt</code> on the boot partition before
+        first boot, then plug that single USB port straight into your laptop with a data-capable cable.
+        The Pi shows up as a USB Ethernet device; share your laptop's internet connection to it (Windows:
+        adapter Properties → Sharing tab) and SSH in over that link instead. More fiddly to set up than
+        step 1, but no wifi credential ever touches the reference Pi.
+      </div>
+
+      <div class="danger-note">
+        <strong>Don't skip sanitizing.</strong> Skipping it means every device you ever flash from this
+        image starts with the same SSH host keys and the same <code>machine-id</code> — harmless until
+        it very much isn't (SSH host-key warnings, DHCP/mDNS collisions between devices).
+      </div>
+    </section>
+
+    <section id="phaseb">
+      <span class="tag repeat">Repeat every device</span>
+      <h2><span class="num">B</span>Flash and deploy a new device</h2>
+
+      <div class="flow">
+        <div class="step"><div class="n">01</div><div class="t">Flash golden.img</div><div class="d">Raspberry Pi Imager → "Use custom" — nothing to fill in</div></div>
+        <div class="step"><div class="n">02</div><div class="t">Power on at the tank</div><div class="d">No Ethernet, no monitor — just power</div></div>
+        <div class="step"><div class="n">03</div><div class="t">Join comitup-&lt;nnn&gt;</div><div class="d">From a phone, near the device — customer does this part</div></div>
+        <div class="step"><div class="n">04</div><div class="t">Configure wifi</div><div class="d">Pick the real network, enter its password — customer's last step</div></div>
+        <div class="step"><div class="n">05</div><div class="t">Find its hostname</div><div class="d">Router's DHCP client list — look for "brine-…"</div></div>
+        <div class="step"><div class="n">06</div><div class="t">Register with AWS</div><div class="d">Run onboard-device.sh from your laptop</div></div>
+      </div>
+
+      <p>
+        Steps 1–4 are the entire customer-facing setup — flash the card, plug it in, join a hotspot, pick
+        a wifi network. Steps 5–6 are yours, done afterward from wherever you manage the fleet; the
+        customer never needs to be involved in them or even know they happen.
+      </p>
+
+      <ol class="step-list">
+        <li>
+          <strong>Flash golden.img to a new SD card</strong>
+          <p>Raspberry Pi Imager → Choose OS → <em>Use custom</em> → select <code>golden.img</code>.
+          There's no Customisation step to fill in — it's unavailable for a local image file — and
+          nothing to fill in even if it were: SSH, the <code>pi</code> login, and the device's own
+          hostname are all already handled by the image itself.</p>
+        </li>
+        <li>
+          <strong>Install it at the tank and power it on</strong>
+          <p>No cables needed beyond power and the sensor's own wiring.</p>
+        </li>
+        <li>
+          <strong>Join the hotspot and configure wifi</strong>
+          <p>On a phone: connect to <code>comitup-&lt;nnn&gt;</code> (no password). A captive portal
+          should open automatically; if it doesn't, browse to <code>http://10.42.0.1</code> or
+          <code>http://comitup-&lt;nnn&gt;.local</code>. Pick the real network, enter its password. The
+          device joins it and the hotspot disappears within about 30 seconds — your phone will
+          typically reconnect to that same real network on its own a moment later. <strong>That's the
+          whole customer-facing setup, done.</strong></p>
+        </li>
+        <li>
+          <strong>Find the device's hostname</strong>
+          <p>It already named itself on first boot — you just need to look it up. Check your router's
+          DHCP client list for the newest entry starting with <code>brine-</code> (e.g.
+          <code>brine-1000000012345678</code>). Multiple devices can be provisioned around the same time
+          now without conflict, since each one's name is unique from the moment it boots — no more
+          "one at a time" constraint.</p>
+        </li>
+        <li>
+          <strong>Register the device with AWS IoT Core</strong>
+          <p>From your laptop, using the hostname you just looked up:</p>
+          <pre><code>./onboard-device.sh pi@brine-1000000012345678.local</code></pre>
+          <p>The script reads that hostname over SSH and uses it as the device's AWS IoT identity —
+          refusing to proceed if it sees the generic <code>raspberrypi</code> default, which would mean
+          something's actually wrong (see Troubleshooting) rather than a step you forgot — then writes
+          it into <code>device.env</code> and starts the sensor timer, so this one command finishes the
+          job end to end.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="verify">
+      <h2>Verification checklist</h2>
+      <h3>Comitup / wifi</h3>
+      <ul class="checklist">
+        <li><strong>Service running:</strong> <code>systemctl status comitup</code> shows active.</li>
+        <li><strong>AP appears with no known network:</strong> a phone nearby sees <code>comitup-&lt;nnn&gt;</code> in its wifi list.</li>
+        <li><strong>Captive portal loads</strong> and lists nearby networks to choose from.</li>
+        <li><strong>After submitting credentials,</strong> the AP disappears and the device is reachable on the real network (check your router's client list, or <code>ping &lt;hostname&gt;.local</code>).</li>
+        <li><strong>Power-cycle test:</strong> reboot the device while it's on real wifi — it should reconnect to that network directly, no AP.</li>
+      </ul>
+      <h3>Sensor + publish</h3>
+      <ul class="checklist">
+        <li><strong>UART is free:</strong> <code>ls -l /dev/ttyAMA0</code> exists; <code>systemctl status serial-getty@ttyAMA0</code> shows masked/inactive.</li>
+        <li><strong>Manual read works:</strong> <code>sudo systemctl start brine-sensor.service && journalctl -u brine-sensor.service -n 20</code> shows real distance readings, not <code>status</code> errors (this bypasses the <code>ExecCondition</code> gate, so it works even before onboarding).</li>
+        <li><strong>Timer is scheduled:</strong> <code>systemctl list-timers brine-sensor.timer</code> shows a next-run time once the device is onboarded.</li>
+        <li><strong>Telemetry lands in AWS:</strong> confirmed via the AWS onboarding runbook's own checklist.</li>
+        <li><strong>Nightly reboot is scheduled:</strong> <code>systemctl list-timers nightly-reboot.timer</code> shows a next-run time (it's unconditional, so this should show up immediately, unlike the sensor timer).</li>
+      </ul>
+      <h3>Auto-hostname</h3>
+      <ul class="checklist">
+        <li><strong>Hostname is set correctly:</strong> <code>hostname</code> on the device returns <code>brine-&lt;its CPU serial&gt;</code>, not <code>raspberrypi</code> — compare against <code>awk -F': ' '/^Serial/{print $2}' /proc/cpuinfo</code>.</li>
+        <li><strong>Service ran cleanly:</strong> <code>systemctl status set-hostname-from-serial.service</code> shows <code>active (exited)</code>, not <code>failed</code>.</li>
+        <li><strong>Reboot test:</strong> power-cycle the device — the hostname should come back identical (deterministic from hardware, not randomly regenerated).</li>
+        <li><strong>Two devices, two names:</strong> if you have more than one reference build or test device, confirm they get different hostnames from each other.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting</h2>
+      <ul class="checklist">
+        <li><strong>No AP shows up at all:</strong> <code>journalctl -u comitup</code> for errors; confirm <code>nmcli device status</code> shows <code>wlan0</code> managed by NetworkManager, not <code>unmanaged</code>.</li>
+        <li><strong>Captive portal doesn't auto-open on the phone:</strong> normal on some OS/browser combinations — browse to <code>http://10.42.0.1</code> directly.</li>
+        <li><strong>Sensor timer doesn't start right after wifi connects:</strong> check <code>journalctl -t comitup-callback</code> for what the callback saw, and confirm <code>external_callback</code> is actually set in <code>/etc/comitup.conf</code>.</li>
+        <li><strong>Sensor reads come back with a nonzero <code>status</code>:</strong> almost always wiring or the UART overlay — re-check <code>dtoverlay=disable-bt</code> is in <code>/boot/firmware/config.txt</code> and that nothing else has <code>/dev/ttyAMA0</code> open (<code>sudo fuser /dev/ttyAMA0</code>).</li>
+        <li><strong>Timer never fires:</strong> check that <code>device.pem.crt</code> exists in the cert directory — the <code>ExecCondition</code> gate on <code>brine-sensor.service</code> is waiting on it, meaning <code>onboard-device.sh</code> hasn't run (or didn't finish) yet.</li>
+        <li><strong>Device still shows the generic <code>raspberrypi</code> hostname:</strong> means <code>set-hostname-from-serial.service</code> genuinely failed — check <code>journalctl -u set-hostname-from-serial.service</code> on the device. The most likely cause is <code>/proc/cpuinfo</code> not exposing a <code>Serial</code> line (unusual on real Raspberry Pi hardware); the fallback is to set one by hand with <code>sudo raspi-config nonint do_hostname &lt;name&gt;</code> and reboot.</li>
+        <li><strong>Can't find a device's hostname in the router's client list:</strong> give it a minute after step 3 — the router needs to pick up the new DHCP lease and its hostname before it shows up. If it's still missing, confirm the device actually left the <code>comitup-&lt;nnn&gt;</code> hotspot (check the router's list for that name too, or that the hotspot itself is gone).</li>
+      </ul>
+    </section>
+
+    <section id="security">
+      <h2>Security notes</h2>
+      <ul class="checklist">
+        <li><strong>The fallback AP is open (no password) by design</strong> — that's how you get in to configure it. It only exists while the device has no known network, and only within wifi range, so the exposure window is physical proximity plus "not yet configured."</li>
+        <li><strong>Every device gets its own SSH host keys and machine-id</strong> once <code>sanitize-for-imaging.sh</code> has run before capture — don't skip it.</li>
+        <li><strong>No AWS credentials are baked into the image.</strong> The image only knows how to reach the sensor and AWS's public endpoint; the device-specific certificate arrives later via <code>onboard-device.sh</code>, same short-lived-claim model as the AWS onboarding runbook.</li>
+      </ul>
+    </section>
+
+    <section id="refs">
+      <h2>References</h2>
+      <ul class="refs">
+        <li><a href="https://github.com/davesteele/comitup">comitup — Wifi bootstrap over wifi</a></li>
+        <li><a href="https://github.com/davesteele/comitup/wiki/Installing-Comitup">Installing comitup</a></li>
+        <li><a href="https://www.zansara.dev/posts/2024-01-06-raspberrypi-headless-bookworm-wifi-config/">Raspberry Pi OS Bookworm headless first-boot config (firstrun.sh, NetworkManager)</a></li>
+        <li><a href="https://sourceforge.net/projects/win32diskimager/">Win32 Disk Imager</a></li>
+        <li><a href="https://github.com/Drewsif/PiShrink">PiShrink</a></li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    Written for a single-operator brine tank sensor fleet on Raspberry Pi OS Bookworm Lite. Adjust
+    <code>TARGET_USER</code>/<code>SENSOR_DIR</code> in <code>provision-image.sh</code> if your setup
+    differs from the defaults used here.
+  </footer>
+</div>
+
+</body></html>

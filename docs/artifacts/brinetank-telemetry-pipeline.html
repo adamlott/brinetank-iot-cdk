@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>BrineTank Telemetry Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#EDF1F0;
+    --surface:#FFFFFF;
+    --surface-2:#E3E9E7;
+    --ink:#16232A;
+    --ink-soft:#3E4C52;
+    --muted:#64757A;
+    --line:#C7D3D1;
+    --accent:#0E7C86;
+    --accent-soft:#E3F2F1;
+    --alert:#B5601F;
+    --alert-soft:#F7E9DA;
+    --shadow: 0 1px 2px rgba(22,35,42,.06), 0 6px 16px -8px rgba(22,35,42,.12);
+    /* service-category icon colors — deliberately constant across themes, like a brand mark */
+    --ic-compute:#DD7324;
+    --ic-db:#4A5FD8;
+    --ic-msg:#C82C7C;
+    --ic-iot:#0E8C74;
+    --ic-net:#7A44D6;
+    --ic-store:#3F9142;
+    --ic-neutral:#67757C;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0B1416;
+      --surface:#101C1F;
+      --surface-2:#16262A;
+      --ink:#E7EDEC;
+      --ink-soft:#C3D0CF;
+      --muted:#87999C;
+      --line:#24373B;
+      --accent:#35C5BD;
+      --accent-soft:rgba(53,197,189,.13);
+      --alert:#E29A55;
+      --alert-soft:rgba(226,154,85,.13);
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px -8px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0B1416;
+    --surface:#101C1F;
+    --surface-2:#16262A;
+    --ink:#E7EDEC;
+    --ink-soft:#C3D0CF;
+    --muted:#87999C;
+    --line:#24373B;
+    --accent:#35C5BD;
+    --accent-soft:rgba(53,197,189,.13);
+    --alert:#E29A55;
+    --alert-soft:rgba(226,154,85,.13);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px -8px rgba(0,0,0,.5);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  a{ color:var(--accent); }
+  .page{
+    max-width:1180px;
+    margin:0 auto;
+    padding:56px 32px 96px;
+  }
+
+  .eyebrow{
+    font-family:"IBM Plex Sans Condensed", sans-serif;
+    font-weight:600;
+    font-size:12.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+  }
+
+  header.masthead{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:40px;
+    flex-wrap:wrap;
+    border-bottom:1px solid var(--line);
+    padding-bottom:28px;
+    margin-bottom:36px;
+  }
+  h1{
+    font-family:"IBM Plex Sans Condensed", sans-serif;
+    font-weight:700;
+    font-size:clamp(32px,4.4vw,46px);
+    letter-spacing:-.01em;
+    margin:.3em 0 .1em;
+    text-wrap:balance;
+  }
+  .dek{
+    max-width:60ch;
+    color:var(--ink-soft);
+    font-size:16.5px;
+  }
+
+  .titleblock{
+    font-family:"IBM Plex Mono", ui-monospace, monospace;
+    font-size:12px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    background:var(--surface);
+    box-shadow:var(--shadow);
+    min-width:230px;
+  }
+  .titleblock .row{
+    display:flex;
+    justify-content:space-between;
+    gap:16px;
+    padding:7px 12px;
+    border-bottom:1px solid var(--line);
+  }
+  .titleblock .row:last-child{ border-bottom:none; }
+  .titleblock .k{ color:var(--muted); }
+  .titleblock .v{ color:var(--ink); font-weight:500; }
+
+  section{ margin:52px 0; }
+  section > h2{
+    font-family:"IBM Plex Sans Condensed", sans-serif;
+    font-weight:600;
+    font-size:22px;
+    margin:0 0 6px;
+  }
+  section > .section-sub{
+    color:var(--muted);
+    font-size:14.5px;
+    margin:0 0 22px;
+    max-width:68ch;
+  }
+  .subhead-flex{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:32px;
+    flex-wrap:wrap;
+  }
+  .subhead-flex .titleblock{ margin-top:2px; }
+
+  .prose{ max-width:74ch; }
+  .prose p{ margin:0 0 14px; color:var(--ink-soft); }
+  .prose p:last-child{ margin-bottom:0; }
+  .prose strong{ color:var(--ink); font-weight:600; }
+  code{
+    font-family:"IBM Plex Mono", ui-monospace, monospace;
+    font-size:.92em;
+    background:var(--surface-2);
+    padding:.12em .4em;
+    border-radius:3px;
+    color:var(--ink);
+  }
+
+  .diagram-frame{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:var(--shadow);
+    padding:8px;
+  }
+  .diagram-scroll{
+    overflow-x:auto;
+  }
+  .diagram-scroll svg{
+    display:block;
+    width:100%;
+    min-width:1100px;
+    height:auto;
+  }
+  figcaption{
+    font-size:13px;
+    color:var(--muted);
+    margin-top:12px;
+    max-width:80ch;
+  }
+  figure{ margin:0; }
+
+  /* --- schematic svg styling --- */
+  .node-box{ fill:var(--surface); stroke:var(--ink-soft); stroke-width:1.4; }
+  .node-box.compute{ stroke:var(--accent); }
+  .node-title{ font-family:"IBM Plex Sans Condensed", sans-serif; font-weight:600; fill:var(--ink); }
+  .node-sub{ font-family:"IBM Plex Mono", monospace; fill:var(--muted); }
+  .tag{ font-family:"IBM Plex Mono", monospace; font-weight:600; fill:var(--accent); }
+  .conn{ stroke:var(--ink-soft); stroke-width:1.4; fill:none; }
+  .conn.dashed{ stroke:var(--alert); stroke-dasharray:4 3; }
+  .conn.good{ stroke:var(--accent); stroke-width:1.8; }
+  .conn-label{ font-family:"IBM Plex Mono", monospace; fill:var(--ink-soft); }
+  .conn-label.sub{ fill:var(--muted); }
+  .conn-label.warn{ fill:var(--alert); }
+  .conn-label.good{ fill:var(--accent); font-weight:600; }
+
+  /* --- service icon badges --- */
+  .icon-badge{ stroke:none; }
+  .ic-compute{ fill:var(--ic-compute); }
+  .ic-db{ fill:var(--ic-db); }
+  .ic-msg{ fill:var(--ic-msg); }
+  .ic-iot{ fill:var(--ic-iot); }
+  .ic-net{ fill:var(--ic-net); }
+  .ic-store{ fill:var(--ic-store); }
+  .ic-neutral{ fill:var(--ic-neutral); }
+  .glyph{ stroke:#fff; stroke-width:1.5; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .glyph-fill{ fill:#fff; }
+
+  /* component reference grid */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:14px;
+  }
+  @media (max-width:820px){ .grid{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:560px){ .grid{ grid-template-columns:1fr; } }
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:16px 18px;
+    box-shadow:var(--shadow);
+  }
+  .card .card-head{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    margin-bottom:6px;
+  }
+  .card .card-icon{ flex:none; display:block; }
+  .card .tagpill{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:11px;
+    font-weight:600;
+    color:var(--accent);
+    background:var(--accent-soft);
+    border-radius:3px;
+    padding:2px 6px;
+  }
+  .card h3{
+    font-family:"IBM Plex Sans Condensed", sans-serif;
+    font-size:15.5px;
+    font-weight:600;
+    margin:0;
+  }
+  .card p{
+    margin:0;
+    font-size:13.5px;
+    color:var(--ink-soft);
+  }
+
+  .band{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:var(--shadow);
+    padding:22px 24px;
+  }
+  .band svg{ width:100%; height:auto; display:block; }
+
+  .flow-note{
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin-top:16px;
+  }
+  .flow-note .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--alert);
+    margin-top:6px;
+    flex:none;
+  }
+
+  footer{
+    margin-top:64px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-size:12.5px;
+    color:var(--muted);
+    font-family:"IBM Plex Mono", monospace;
+  }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">AWS CDK &middot; Serverless IoT</div>
+      <h1>BrineTank Telemetry Pipeline</h1>
+      <p class="dek">A water-softener salt monitor: ultrasonic readings flow from a Raspberry Pi through IoT Core into a chain of Lambda functions that compute tank level, hold alert state, and email someone before the brine tank runs dry. A second, read-only stack in this same repo now lets customers check that level themselves; a separate storefront repo shares the brand but not the code &mdash; both below.</p>
+    </div>
+    <div class="titleblock">
+      <div class="row"><span class="k">stack</span><span class="v">BrinetankIotCdkStack</span></div>
+      <div class="row"><span class="k">runtime</span><span class="v">Python 3.12</span></div>
+      <div class="row"><span class="k">env</span><span class="v">prod</span></div>
+      <div class="row"><span class="k">sender</span><span class="v">alerts@salty-water.com</span></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>What it does</h2>
+    <div class="prose">
+      <p>A Raspberry Pi with an ultrasonic distance sensor sits above each brine tank and publishes a reading &mdash; distance to the salt surface, an optional temperature, a status code &mdash; over MQTT every so often. <strong>AWS IoT Core</strong> catches every message on <code>pi/+/telemetry</code> and hands it to a Lambda that converts distance into a fill percentage, using two calibration points: the distance reading at empty (<code>EMPTY_DISTANCE</code>, 70&nbsp;cm) and at full (<code>FULL_DISTANCE</code>, 6&nbsp;cm).</p>
+      <p>Every reading is written to a rolling history table (45-day TTL) and a single &ldquo;latest&rdquo; row per device, then handed asynchronously to a second Lambda that owns alerting. That function is a small state machine: it only emails on the <strong>transition</strong> into a low state, respects a cooldown so it doesn't nag, and uses hysteresis so a level bouncing around the threshold doesn't flap between alert and all-clear. A separate check watches for a sudden jump from very-low to well-above-half, treats that as &ldquo;someone poured in salt,&rdquo; and fires a recovery email immediately.</p>
+      <p>Neither Lambda calls SES directly. Both alert types are dropped onto an <strong>SQS queue</strong>, and a third, single-purpose Lambda drains it in batches and is the only thing in the system allowed to send mail &mdash; failed sends retry up to three times before landing in a dead-letter queue instead of vanishing.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Architecture</h2>
+    <p class="section-sub">Reading in → state machine → mail out. Solid arrows are the normal path; the dashed arrows are the two exception paths &mdash; a delivery retry that gives up, and a threshold override.</p>
+    <div class="diagram-frame">
+      <div class="diagram-scroll">
+        <svg viewBox="0 0 1900 540" role="img" aria-label="Data flows from an IoT sensor node through AWS IoT Core to the BrineTankIngest Lambda, which writes DynamoDB and invokes LowLevelAlert; LowLevelAlert reads and writes a config table and enqueues onto SQS; SQS triggers EmailSender, which calls Amazon SES to deliver mail, with a dead-letter queue on the SQS branch for failed sends.">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- ===== main row (y 90-154, box width 210) ===== -->
+          <!-- Device -->
+          <rect class="node-box" x="40" y="90" width="210" height="64" rx="4"/>
+          <rect class="icon-badge ic-neutral" x="52" y="107" width="30" height="30" rx="7"/>
+          <rect class="glyph" x="59" y="115" width="16" height="14" rx="1.5"/>
+          <line class="glyph" x1="62" y1="115" x2="62" y2="111"/>
+          <line class="glyph" x1="67" y1="115" x2="67" y2="111"/>
+          <line class="glyph" x1="72" y1="115" x2="72" y2="111"/>
+          <line class="glyph" x1="62" y1="129" x2="62" y2="133"/>
+          <line class="glyph" x1="67" y1="129" x2="67" y2="133"/>
+          <line class="glyph" x1="72" y1="129" x2="72" y2="133"/>
+          <text class="node-title" x="92" y="114" font-size="14">Sensor Node</text>
+          <text class="node-sub" x="92" y="131" font-size="10">Pi + A02YYUW</text>
+
+          <!-- IoT Core -->
+          <rect class="node-box" x="360" y="90" width="210" height="64" rx="4"/>
+          <rect class="icon-badge ic-iot" x="372" y="107" width="30" height="30" rx="7"/>
+          <circle class="glyph" cx="387" cy="122" r="2.4"/>
+          <line class="glyph" x1="387" y1="122" x2="377" y2="112"/>
+          <line class="glyph" x1="387" y1="122" x2="397" y2="112"/>
+          <line class="glyph" x1="387" y1="122" x2="377" y2="132"/>
+          <line class="glyph" x1="387" y1="122" x2="397" y2="132"/>
+          <circle class="glyph-fill" cx="377" cy="112" r="1.7"/>
+          <circle class="glyph-fill" cx="397" cy="112" r="1.7"/>
+          <circle class="glyph-fill" cx="377" cy="132" r="1.7"/>
+          <circle class="glyph-fill" cx="397" cy="132" r="1.7"/>
+          <text class="node-title" x="412" y="114" font-size="14">IoT Core</text>
+          <text class="node-sub" x="412" y="131" font-size="10">BrineTankIngestRule</text>
+
+          <!-- Ingest Lambda -->
+          <rect class="node-box compute" x="680" y="90" width="210" height="64" rx="4"/>
+          <rect class="icon-badge ic-compute" x="692" y="107" width="30" height="30" rx="7"/>
+          <text class="glyph-fill" x="707" y="129" font-size="19" font-family="IBM Plex Sans Condensed" font-weight="700" text-anchor="middle">&#955;</text>
+          <text class="node-title" x="732" y="114" font-size="14">BrineTankIngest</text>
+          <text class="node-sub" x="732" y="131" font-size="10">calc percent_full</text>
+
+          <!-- Alert Lambda -->
+          <rect class="node-box compute" x="1000" y="90" width="210" height="64" rx="4"/>
+          <rect class="icon-badge ic-compute" x="1012" y="107" width="30" height="30" rx="7"/>
+          <text class="glyph-fill" x="1027" y="129" font-size="19" font-family="IBM Plex Sans Condensed" font-weight="700" text-anchor="middle">&#955;</text>
+          <text class="node-title" x="1052" y="114" font-size="14">LowLevelAlert</text>
+          <text class="node-sub" x="1052" y="131" font-size="10">threshold state machine</text>
+
+          <!-- SQS Queue -->
+          <rect class="node-box" x="1320" y="90" width="210" height="64" rx="4"/>
+          <rect class="icon-badge ic-msg" x="1332" y="107" width="30" height="30" rx="7"/>
+          <rect class="glyph" x="1338" y="118" width="5" height="8"/>
+          <rect class="glyph" x="1344.5" y="114" width="5" height="12"/>
+          <rect class="glyph" x="1351" y="118" width="5" height="8"/>
+          <text class="node-title" x="1372" y="114" font-size="14">Email Queue</text>
+          <text class="node-sub" x="1372" y="131" font-size="10">SQS, vis. 30s</text>
+
+          <!-- Email Sender Lambda -->
+          <rect class="node-box compute" x="1640" y="90" width="210" height="64" rx="4"/>
+          <rect class="icon-badge ic-compute" x="1652" y="107" width="30" height="30" rx="7"/>
+          <text class="glyph-fill" x="1667" y="129" font-size="19" font-family="IBM Plex Sans Condensed" font-weight="700" text-anchor="middle">&#955;</text>
+          <text class="node-title" x="1692" y="114" font-size="14">EmailSender</text>
+          <text class="node-sub" x="1692" y="131" font-size="10">batch 10, SES caller</text>
+
+          <!-- main row connectors -->
+          <line class="conn" x1="250" y1="122" x2="354" y2="122" marker-end="url(#arrow)"/>
+          <text class="conn-label" x="302" y="62" font-size="11" text-anchor="middle">MQTT publish</text>
+          <text class="conn-label sub" x="302" y="76" font-size="10" text-anchor="middle">pi/+/telemetry</text>
+
+          <line class="conn" x1="570" y1="122" x2="674" y2="122" marker-end="url(#arrow)"/>
+          <text class="conn-label" x="622" y="62" font-size="11" text-anchor="middle">Topic Rule</text>
+          <text class="conn-label sub" x="622" y="76" font-size="10" text-anchor="middle">SQL filter, invokes</text>
+
+          <line class="conn" x1="890" y1="122" x2="994" y2="122" marker-end="url(#arrow)"/>
+          <text class="conn-label" x="942" y="62" font-size="11" text-anchor="middle">async invoke</text>
+          <text class="conn-label sub" x="942" y="76" font-size="10" text-anchor="middle">every reading</text>
+
+          <line class="conn" x1="1210" y1="122" x2="1314" y2="122" marker-end="url(#arrow)"/>
+          <text class="conn-label" x="1262" y="62" font-size="11" text-anchor="middle">SendMessage</text>
+          <text class="conn-label sub" x="1262" y="76" font-size="10" text-anchor="middle">on state change</text>
+
+          <line class="conn" x1="1530" y1="122" x2="1634" y2="122" marker-end="url(#arrow)"/>
+          <text class="conn-label" x="1582" y="62" font-size="11" text-anchor="middle">poll</text>
+          <text class="conn-label sub" x="1582" y="76" font-size="10" text-anchor="middle">batch &le;10</text>
+
+          <!-- ===== sub row (y 290-350/344) ===== -->
+          <!-- DynamoDB data -->
+          <rect class="node-box" x="665" y="290" width="240" height="58" rx="4"/>
+          <rect class="icon-badge ic-db" x="677" y="306" width="26" height="26" rx="6"/>
+          <ellipse class="glyph" cx="690" cy="313" rx="7" ry="2.6"/>
+          <line class="glyph" x1="683" y1="313" x2="683" y2="326"/>
+          <line class="glyph" x1="697" y1="313" x2="697" y2="326"/>
+          <path class="glyph" d="M 683,319.5 A 7,2.6 0 0 0 697,319.5"/>
+          <path class="glyph" d="M 683,326 A 7,2.6 0 0 0 697,326"/>
+          <text class="node-title" x="715" y="316" font-size="13">BrineTankReadings / Latest</text>
+          <text class="node-sub" x="715" y="332" font-size="10">PK device, TTL 45d on history</text>
+
+          <!-- DynamoDB config -->
+          <rect class="node-box" x="995" y="290" width="220" height="58" rx="4"/>
+          <rect class="icon-badge ic-db" x="1007" y="306" width="26" height="26" rx="6"/>
+          <ellipse class="glyph" cx="1020" cy="313" rx="7" ry="2.6"/>
+          <line class="glyph" x1="1013" y1="313" x2="1013" y2="326"/>
+          <line class="glyph" x1="1027" y1="313" x2="1027" y2="326"/>
+          <path class="glyph" d="M 1013,319.5 A 7,2.6 0 0 0 1027,319.5"/>
+          <path class="glyph" d="M 1013,326 A 7,2.6 0 0 0 1027,326"/>
+          <text class="node-title" x="1045" y="316" font-size="13">SensorNotificationConfig</text>
+          <text class="node-sub" x="1045" y="332" font-size="10">threshold, hysteresis, state</text>
+
+          <!-- DLQ -->
+          <rect class="node-box" x="1340" y="290" width="170" height="54" rx="4"/>
+          <rect class="icon-badge ic-msg" x="1352" y="304" width="26" height="26" rx="6"/>
+          <rect class="glyph" x="1357" y="313" width="4.5" height="7"/>
+          <rect class="glyph" x="1363" y="310" width="4.5" height="10"/>
+          <rect class="glyph" x="1369" y="313" width="4.5" height="7"/>
+          <text class="node-title" x="1390" y="314" font-size="13">Dead-letter Queue</text>
+          <text class="node-sub" x="1390" y="329" font-size="10">14d retention</text>
+
+          <!-- SES -->
+          <rect class="node-box" x="1660" y="290" width="170" height="54" rx="4"/>
+          <rect class="icon-badge ic-msg" x="1672" y="304" width="26" height="26" rx="6"/>
+          <rect class="glyph" x="1677" y="311" width="16" height="11"/>
+          <path class="glyph" d="M 1677,311 L 1685,318 L 1693,311"/>
+          <text class="node-title" x="1710" y="314" font-size="13">Amazon SES</text>
+          <text class="node-sub" x="1710" y="329" font-size="10">v2 SendEmail</text>
+
+          <!-- vertical connectors row1->row2 -->
+          <line class="conn" x1="785" y1="154" x2="785" y2="284" marker-end="url(#arrow)"/>
+          <text class="conn-label" x="806" y="212" font-size="11">PutItem &times;2</text>
+          <text class="conn-label sub" x="806" y="226" font-size="10">history + latest</text>
+
+          <line class="conn" x1="1105" y1="154" x2="1105" y2="284" marker-end="url(#arrow)"/>
+          <text class="conn-label" x="1126" y="205" font-size="11">get / update</text>
+          <text class="conn-label sub" x="1126" y="219" font-size="10">threshold &middot; cooldown</text>
+          <text class="conn-label sub" x="1126" y="233" font-size="10">lastState &middot; lastAlertTs</text>
+
+          <line class="conn dashed" x1="1425" y1="154" x2="1425" y2="284" marker-end="url(#arrow)"/>
+          <text class="conn-label warn" x="1446" y="212" font-size="11">3 failed</text>
+          <text class="conn-label warn" x="1446" y="226" font-size="10">receives &rarr; DLQ</text>
+
+          <line class="conn" x1="1745" y1="154" x2="1745" y2="284" marker-end="url(#arrow)"/>
+          <text class="conn-label" x="1700" y="212" font-size="11" text-anchor="end">SendEmail</text>
+          <text class="conn-label sub" x="1700" y="226" font-size="10" text-anchor="end">from verified sender</text>
+
+          <!-- ===== terminal row (y 440-494) ===== -->
+          <rect class="node-box" x="1660" y="440" width="170" height="54" rx="4"/>
+          <rect class="icon-badge ic-neutral" x="1672" y="454" width="26" height="26" rx="6"/>
+          <circle class="glyph" cx="1685" cy="461.5" r="2.6"/>
+          <path class="glyph" d="M 1678,474 A 7,8 0 0 1 1692,474"/>
+          <text class="node-title" x="1710" y="464" font-size="13">Recipient inbox</text>
+          <text class="node-sub" x="1710" y="479" font-size="10">sensor_email_map</text>
+
+          <line class="conn" x1="1745" y1="344" x2="1745" y2="434" marker-end="url(#arrow)"/>
+          <text class="conn-label" x="1766" y="394" font-size="11">delivers</text>
+        </svg>
+      </div>
+    </div>
+    <figcaption>BrineTankIngest and LowLevelAlert never touch SES directly &mdash; every email, alert or recovery, is queued through SQS so EmailSender is the single, retryable choke point for outbound mail.</figcaption>
+  </section>
+
+  <section>
+    <h2>Components</h2>
+    <p class="section-sub">Nine pieces, three of them Lambda functions, wired by IAM grants defined alongside them in the stack.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="card-head">
+          <svg class="card-icon" width="22" height="22" viewBox="0 0 22 22"><rect class="ic-neutral" width="22" height="22" rx="5"/><rect class="glyph" x="6" y="8" width="10" height="8" rx="1"/><line class="glyph" x1="8" y1="8" x2="8" y2="5.5"/><line class="glyph" x1="11" y1="8" x2="11" y2="5.5"/><line class="glyph" x1="14" y1="8" x2="14" y2="5.5"/><line class="glyph" x1="8" y1="16" x2="8" y2="18.5"/><line class="glyph" x1="11" y1="16" x2="11" y2="18.5"/><line class="glyph" x1="14" y1="16" x2="14" y2="18.5"/></svg>
+          <span class="tagpill">DEV</span><h3>Sensor node</h3>
+        </div>
+        <p>Raspberry Pi reading an A02YYUW ultrasonic sensor; publishes JSON &mdash; distance, filtered distance, temperature, status &mdash; over MQTT.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <svg class="card-icon" width="22" height="22" viewBox="0 0 22 22"><rect class="ic-iot" width="22" height="22" rx="5"/><circle class="glyph" cx="11" cy="11" r="2"/><line class="glyph" x1="11" y1="9" x2="11" y2="5.5"/><line class="glyph" x1="12.7" y1="12" x2="16" y2="14"/><line class="glyph" x1="9.3" y1="12" x2="6" y2="14"/></svg>
+          <span class="tagpill">IOT</span><h3>IoT Core rule</h3>
+        </div>
+        <p><code>BrineTankIngestRule</code> selects off <code>pi/+/telemetry</code> and invokes the ingest function directly &mdash; no broker code in between.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <svg class="card-icon" width="22" height="22" viewBox="0 0 22 22"><rect class="ic-compute" width="22" height="22" rx="5"/><text x="11" y="16" font-size="14" font-family="IBM Plex Sans Condensed" font-weight="700" text-anchor="middle" class="glyph-fill">&#955;</text></svg>
+          <span class="tagpill">&#955;1</span><h3>BrineTankIngest</h3>
+        </div>
+        <p>30s timeout. Converts distance to <code>percent_full</code> against calibrated empty/full points, writes both tables, invokes the alert function async.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <svg class="card-icon" width="22" height="22" viewBox="0 0 22 22"><rect class="ic-db" width="22" height="22" rx="5"/><ellipse class="glyph" cx="11" cy="8" rx="5.5" ry="2"/><line class="glyph" x1="5.5" y1="8" x2="5.5" y2="15"/><line class="glyph" x1="16.5" y1="8" x2="16.5" y2="15"/><path class="glyph" d="M 5.5,15 A 5.5,2 0 0 0 16.5,15"/></svg>
+          <span class="tagpill">DB1</span><h3>Readings / Latest tables</h3>
+        </div>
+        <p>Pay-per-request DynamoDB. History keyed <code>device</code>+<code>ts</code> with a 45-day <code>ttl_epoch</code>; latest keyed <code>device</code> only, no expiry.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <svg class="card-icon" width="22" height="22" viewBox="0 0 22 22"><rect class="ic-compute" width="22" height="22" rx="5"/><text x="11" y="16" font-size="14" font-family="IBM Plex Sans Condensed" font-weight="700" text-anchor="middle" class="glyph-fill">&#955;</text></svg>
+          <span class="tagpill">&#955;2</span><h3>LowLevelAlert</h3>
+        </div>
+        <p>10s timeout. Threshold + hysteresis + cooldown state machine, plus a salt-refill jump detector; the only writer of alert state.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <svg class="card-icon" width="22" height="22" viewBox="0 0 22 22"><rect class="ic-db" width="22" height="22" rx="5"/><ellipse class="glyph" cx="11" cy="8" rx="5.5" ry="2"/><line class="glyph" x1="5.5" y1="8" x2="5.5" y2="15"/><line class="glyph" x1="16.5" y1="8" x2="16.5" y2="15"/><path class="glyph" d="M 5.5,15 A 5.5,2 0 0 0 16.5,15"/></svg>
+          <span class="tagpill">DB2</span><h3>SensorNotificationConfig</h3>
+        </div>
+        <p>Per-sensor thresholds, hysteresis, cooldown, and the last known state &mdash; keyed on <code>sensorId</code>, read and written every invocation.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <svg class="card-icon" width="22" height="22" viewBox="0 0 22 22"><rect class="ic-msg" width="22" height="22" rx="5"/><rect class="glyph" x="5.5" y="10" width="3.5" height="6"/><rect class="glyph" x="9.3" y="7" width="3.5" height="9"/><rect class="glyph" x="13.1" y="10" width="3.5" height="6"/></svg>
+          <span class="tagpill">MQ</span><h3>Email queue + DLQ</h3>
+        </div>
+        <p>Decouples the decision to alert from actually sending mail. 3 retries at 30s visibility, then 14 days parked in a dead-letter queue.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <svg class="card-icon" width="22" height="22" viewBox="0 0 22 22"><rect class="ic-compute" width="22" height="22" rx="5"/><text x="11" y="16" font-size="14" font-family="IBM Plex Sans Condensed" font-weight="700" text-anchor="middle" class="glyph-fill">&#955;</text></svg>
+          <span class="tagpill">&#955;3</span><h3>EmailSender</h3>
+        </div>
+        <p>30s timeout, batch size 10, partial-batch-failure reporting. The only function in the stack holding an <code>ses:SendEmail</code> grant.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <svg class="card-icon" width="22" height="22" viewBox="0 0 22 22"><rect class="ic-msg" width="22" height="22" rx="5"/><rect class="glyph" x="5.5" y="7.5" width="11" height="8"/><path class="glyph" d="M 5.5,7.5 L 11,12.5 L 16.5,7.5"/></svg>
+          <span class="tagpill">SES</span><h3>Amazon SES</h3>
+        </div>
+        <p>Plain-text delivery from a verified sender identity (<code>alerts@salty-water.com</code>) to the addresses configured per sensor.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why it doesn't spam you</h2>
+    <p class="section-sub">Not to scale &mdash; the hysteresis band is 2 points wide by default, the diagram widens it so the mechanism is legible.</p>
+    <div class="band">
+      <svg viewBox="0 0 900 150" role="img" aria-label="A level bar split into a low zone below the alert threshold, a hysteresis band where the prior state is held to prevent flapping, and a normal zone above threshold plus hysteresis; a dashed arrow shows a salt-refill jump from deep-low to well into normal overriding the state machine directly.">
+          <defs>
+            <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+            <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+              <line x1="0" y1="0" x2="0" y2="7" stroke="currentColor" stroke-width="2" opacity=".35"/>
+            </pattern>
+          </defs>
+
+          <!-- override arrow -->
+          <path class="conn dashed" d="M 80,86 Q 300,20 560,86" marker-end="url(#arrow2)"/>
+          <text class="conn-label warn" x="320" y="26" font-size="12" text-anchor="middle">salt added: &lt;10% &rarr; &gt;50% forces NORMAL</text>
+
+          <!-- bar -->
+          <rect x="40" y="86" width="160" height="34" fill="var(--alert-soft)" stroke="var(--alert)" stroke-width="1.3"/>
+          <rect x="200" y="86" width="140" height="34" fill="url(#hatch)" stroke="var(--ink-soft)" stroke-width="1.3" style="color:var(--ink-soft)"/>
+          <rect x="340" y="86" width="520" height="34" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.3"/>
+
+          <text x="120" y="107" font-size="12.5" text-anchor="middle" font-family="IBM Plex Sans Condensed" font-weight="600" fill="var(--alert)">LOW</text>
+          <text x="270" y="107" font-size="11" text-anchor="middle" font-family="IBM Plex Mono" fill="var(--ink-soft)">band</text>
+          <text x="600" y="107" font-size="12.5" text-anchor="middle" font-family="IBM Plex Sans Condensed" font-weight="600" fill="var(--accent)">NORMAL</text>
+
+          <text x="40" y="136" font-size="10.5" font-family="IBM Plex Mono" fill="var(--muted)">level &lt; 10%</text>
+          <text x="200" y="136" font-size="10.5" font-family="IBM Plex Mono" fill="var(--muted)">10% &ndash; 12%: hold prior state</text>
+          <text x="700" y="136" font-size="10.5" font-family="IBM Plex Mono" fill="var(--muted)" text-anchor="end">level &ge; 12%: recovered</text>
+      </svg>
+      <div class="flow-note"><span class="dot"></span><span>A drop below <code>thresholdPercent</code> (10%) fires one alert on the <em>transition</em> into LOW &mdash; not on every low reading &mdash; and won't fire again until <code>cooldownSeconds</code> (6h default) has passed. Recovery only registers once the level clears threshold + <code>hysteresisPercent</code>, so a level oscillating right at 10% can't trigger a new email every reading.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="subhead-flex">
+      <div>
+        <h2>The customer portal: a second stack, same repo</h2>
+        <p class="section-sub">A read-only consumer sits next to the pipeline above, not inside it. It imports the two data tables by name and only ever calls <code>GetItem</code>/<code>Query</code> &mdash; the accent-colored arrow below is the one line in the whole system that makes that a guarantee, not a convention.</p>
+      </div>
+      <div class="titleblock">
+        <div class="row"><span class="k">stack</span><span class="v">CustomerPortalStack</span></div>
+        <div class="row"><span class="k">served at</span><span class="v">portal.salty-water.com</span></div>
+        <div class="row"><span class="k">auth</span><span class="v">Cognito, self sign-up</span></div>
+        <div class="row"><span class="k">history shown</span><span class="v">30 of 45 days</span></div>
+        <div class="row"><span class="k">write grant to pipeline data</span><span class="v">none</span></div>
+      </div>
+    </div>
+    <div class="prose" style="margin-bottom:22px;">
+      <p>A customer's browser is a small React SPA served from S3 behind CloudFront at <code>portal.salty-water.com</code> &mdash; an ACM certificate (us-east-1, DNS-validated) and a Route53 alias in the <code>salty-water.com</code> zone put it on a subdomain of the storefront, and the SPA now borrows that site's palette and typefaces so the two read as one brand. The bucket has no public access, only CloudFront can read it. Signing in is a direct Cognito SRP exchange, no hosted-UI redirect; the pool requires and verifies email before it will ever issue a token, because that email is also the partition key linking a customer to their device in a new, portal-owned table, <code>CustomerDevices</code>. Linking is still manual today &mdash; an <code>aws dynamodb put-item</code> call, the same shape as the existing <code>sensor_email_map</code> pattern above.</p>
+      <p>Every request into the API carries that Cognito JWT; a single Lambda checks <code>CustomerDevices</code> to confirm the caller actually owns the requested <code>sensorId</code> before it ever reads a reading &mdash; a 403 if not, never a silent scope to &ldquo;whatever the path says.&rdquo; Once ownership is confirmed, it reads <code>BrineTankLatest</code> and <code>BrineTankReadings</code> exactly as the pipeline stack left them: imported by table name, not by construct, so the two stacks share no CloudFormation export and can be destroyed independently. The HTTP API's CORS policy is an explicit origin allowlist &mdash; the portal's own domain plus <code>localhost:5173</code> for local development &mdash; not the <code>*</code> it started as.</p>
+    </div>
+    <div class="diagram-frame">
+      <div class="diagram-scroll">
+        <svg viewBox="0 0 1450 480" role="img" aria-label="A customer's browser loads a React app from CloudFront and S3, signs in via Cognito, then calls an HTTP API secured by a Cognito JWT authorizer. A single Lambda checks the CustomerDevices table for ownership before reading BrineTankLatest and BrineTankReadings, which are owned by the separate BrinetankIotCdkStack and imported here read-only with no write grant.">
+          <defs>
+            <marker id="arrow4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- Cognito (satellite, top) -->
+          <rect class="node-box" x="520" y="10" width="230" height="54" rx="4"/>
+          <rect class="icon-badge ic-net" x="532" y="24" width="26" height="26" rx="6"/>
+          <rect class="glyph" x="538" y="34" width="12" height="9" rx="1.5"/>
+          <path class="glyph" d="M 540.5,34 L 540.5,30.5 A 3.5,3.5 0 0 1 547.5,30.5 L 547.5,34"/>
+          <circle class="glyph-fill" cx="544" cy="38.5" r="1.3"/>
+          <text class="node-title" x="568" y="34" font-size="13">Cognito User Pool</text>
+          <text class="node-sub" x="568" y="50" font-size="10">self sign-up &middot; email verified</text>
+
+          <!-- Browser -->
+          <rect class="node-box" x="40" y="140" width="210" height="64" rx="4"/>
+          <rect class="icon-badge ic-neutral" x="52" y="157" width="30" height="30" rx="7"/>
+          <rect class="glyph" x="59" y="165" width="16" height="12" rx="1.5"/>
+          <line class="glyph" x1="59" y1="169" x2="75" y2="169"/>
+          <text class="node-title" x="92" y="164" font-size="14">Customer Browser</text>
+          <text class="node-sub" x="92" y="181" font-size="10">React SPA (Vite)</text>
+
+          <!-- CloudFront + S3 -->
+          <rect class="node-box" x="40" y="284" width="210" height="54" rx="4"/>
+          <rect class="icon-badge ic-store" x="52" y="298" width="26" height="26" rx="6"/>
+          <path class="glyph" d="M 59,304 L 71,304 L 69,316 L 61,316 Z"/>
+          <text class="node-title" x="90" y="311" font-size="13">CloudFront + S3</text>
+          <text class="node-sub" x="90" y="327" font-size="10">portal.salty-water.com &middot; OAC</text>
+
+          <!-- HTTP API -->
+          <rect class="node-box" x="430" y="140" width="210" height="64" rx="4"/>
+          <rect class="icon-badge ic-net" x="442" y="157" width="30" height="30" rx="7"/>
+          <line class="glyph" x1="453" y1="164" x2="453" y2="176"/>
+          <line class="glyph" x1="461" y1="164" x2="461" y2="176"/>
+          <line class="glyph" x1="448" y1="170" x2="466" y2="170"/>
+          <path class="glyph" d="M 462.5,167 L 466,170 L 462.5,173"/>
+          <text class="node-title" x="482" y="164" font-size="14">HTTP API</text>
+          <text class="node-sub" x="482" y="181" font-size="10">Cognito JWT authorizer</text>
+
+          <!-- CustomerPortalApi Lambda -->
+          <rect class="node-box compute" x="790" y="140" width="210" height="64" rx="4"/>
+          <rect class="icon-badge ic-compute" x="802" y="157" width="30" height="30" rx="7"/>
+          <text class="glyph-fill" x="817" y="179" font-size="19" font-family="IBM Plex Sans Condensed" font-weight="700" text-anchor="middle">&#955;</text>
+          <text class="node-title" x="842" y="164" font-size="14">CustomerPortalApi</text>
+          <text class="node-sub" x="842" y="181" font-size="10">one fn, both routes</text>
+
+          <!-- CustomerDevices (own table) -->
+          <rect class="node-box" x="790" y="340" width="210" height="54" rx="4"/>
+          <rect class="icon-badge ic-db" x="802" y="354" width="26" height="26" rx="6"/>
+          <ellipse class="glyph" cx="815" cy="361" rx="7" ry="2.6"/>
+          <line class="glyph" x1="808" y1="361" x2="808" y2="374"/>
+          <line class="glyph" x1="822" y1="361" x2="822" y2="374"/>
+          <path class="glyph" d="M 808,367.5 A 7,2.6 0 0 0 822,367.5"/>
+          <path class="glyph" d="M 808,374 A 7,2.6 0 0 0 822,374"/>
+          <text class="node-title" x="840" y="367" font-size="13">CustomerDevices</text>
+          <text class="node-sub" x="840" y="383" font-size="10">PK email, SK sensorId</text>
+
+          <!-- ownership boundary + imported tables (owned by the OTHER stack) -->
+          <rect x="1070" y="316" width="330" height="94" rx="6" fill="none" stroke="var(--line)" stroke-width="1.6" stroke-dasharray="3 4"/>
+          <text x="1082" y="334" class="conn-label sub" font-size="10" style="letter-spacing:.06em">OWNED BY BRINETANKIOTCDKSTACK</text>
+          <rect class="node-box" x="1090" y="340" width="290" height="54" rx="4"/>
+          <rect class="icon-badge ic-db" x="1102" y="354" width="26" height="26" rx="6"/>
+          <ellipse class="glyph" cx="1115" cy="361" rx="7" ry="2.6"/>
+          <line class="glyph" x1="1108" y1="361" x2="1108" y2="374"/>
+          <line class="glyph" x1="1122" y1="361" x2="1122" y2="374"/>
+          <path class="glyph" d="M 1108,367.5 A 7,2.6 0 0 0 1122,367.5"/>
+          <path class="glyph" d="M 1108,374 A 7,2.6 0 0 0 1122,374"/>
+          <text class="node-title" x="1140" y="367" font-size="13">BrineTankLatest / Readings</text>
+          <text class="node-sub" x="1140" y="383" font-size="10">Table.from_table_name, read-only</text>
+
+          <!-- connectors -->
+          <line class="conn" x1="200" y1="140" x2="560" y2="64" marker-end="url(#arrow4)"/>
+          <text class="conn-label" x="330" y="98" font-size="11" text-anchor="middle">sign-in (SRP)</text>
+          <text class="conn-label sub" x="330" y="112" font-size="10" text-anchor="middle">email + password</text>
+
+          <line class="conn" x1="610" y1="64" x2="560" y2="140" marker-end="url(#arrow4)"/>
+          <text class="conn-label" x="632" y="98" font-size="11">validates JWT</text>
+          <text class="conn-label sub" x="632" y="112" font-size="10">email claim</text>
+
+          <line class="conn" x1="145" y1="284" x2="145" y2="204" marker-end="url(#arrow4)"/>
+          <text class="conn-label" x="162" y="248" font-size="11">serves SPA</text>
+          <text class="conn-label sub" x="162" y="262" font-size="10">index.html + JS bundle</text>
+
+          <line class="conn" x1="250" y1="172" x2="430" y2="172" marker-end="url(#arrow4)"/>
+          <text class="conn-label" x="340" y="192" font-size="11" text-anchor="middle">GET /devices</text>
+          <text class="conn-label sub" x="340" y="206" font-size="10" text-anchor="middle">Bearer &lt;idToken&gt;</text>
+
+          <line class="conn" x1="640" y1="172" x2="790" y2="172" marker-end="url(#arrow4)"/>
+          <text class="conn-label" x="715" y="192" font-size="11" text-anchor="middle">invokes</text>
+
+          <line class="conn" x1="895" y1="204" x2="895" y2="340" marker-end="url(#arrow4)"/>
+          <text class="conn-label" x="912" y="266" font-size="11">get / query</text>
+          <text class="conn-label sub" x="912" y="280" font-size="10">email &rarr; sensorIds</text>
+          <text class="conn-label sub" x="912" y="294" font-size="10">then owns 403 check</text>
+
+          <path class="conn good" d="M 985,204 L 985,270 L 1235,270 L 1235,340" marker-end="url(#arrow4)"/>
+          <text class="conn-label good" x="1107" y="245" font-size="11" text-anchor="middle">read-only</text>
+          <text class="conn-label sub" x="1107" y="259" font-size="10" text-anchor="middle">GetItem / Query only</text>
+          <text class="conn-label sub" x="1107" y="290" font-size="10" text-anchor="middle">no write grant, ever</text>
+        </svg>
+      </div>
+    </div>
+    <figcaption>Every other arrow on this page is about routing data correctly; this one is about a boundary that must never move &mdash; <code>customer_portal_stack.py</code> never calls <code>grant_write_data</code> on either imported table, and a unit test asserts the synthesized IAM policy has no write actions in it.</figcaption>
+  </section>
+
+  <section>
+    <h2>The other repo: SaltyWater storefront</h2>
+    <p class="section-sub">A second, independent CDK stack &mdash; <code>.vscode/SaltyWater</code> &mdash; runs the customer-facing ordering site under the same domain. It does not share code, tables, or a stack with the pipeline above.</p>
+    <div class="prose">
+      <p>Customers hit a static site on S3 behind CloudFront (<code>salty-water.com</code> and <code>saltydogsoftwater.com</code>) to browse Crystal/Pellet salt and place an order. The order form posts to API Gateway, which routes to one of three Lambdas: <strong>Order Handler</strong> checks the zip code against a service-area table, writes the order, and publishes to SNS; anyone outside the delivery area gets logged to a leads table instead. <strong>Contact Handler</strong> stores inbound messages. An <strong>Amazon Pay Handler</strong> exists but is still a stub &mdash; no merchant credentials wired in yet. There's no email-sending Lambda here at all: SNS delivers the new-order notification straight to <code>adam.lott@gmail.com</code>.</p>
+      <p>There's also a third, much smaller IoT artifact in that repo: <code>SaltSensor/main.py</code>, MicroPython for a Raspberry Pi Pico W. It's a Wi-Fi-config captive portal plus a status page reporting uptime and board temperature &mdash; a prototype for a second kind of sensor, not the Pi + ultrasonic sensor this pipeline actually runs on, and it doesn't write to any table on either side.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>How the two repos connect today</h2>
+    <p class="section-sub">Mostly, they don't. Dashed here means &ldquo;doesn't exist yet&rdquo;, not an error path &mdash; a different meaning than the dashed DLQ/override lines above. (The customer portal isn't pictured here &mdash; it's a same-repo, same-account read of the tables on the left, not a cross-repo link; see the section above.)</p>
+    <div class="diagram-frame">
+      <div class="diagram-scroll">
+        <svg viewBox="0 0 1400 470" role="img" aria-label="Two independent CDK stacks, brinetank-iot-cdk and SaltyWater, share only the salty-water.com domain and the operator's inbox today; a dashed, not-yet-built link would run from the LowLevelAlert Lambda to the SaltyWater order pipeline to trigger automatic reorders. A separate, disconnected Pico W sensor prototype sits outside both.">
+          <defs>
+            <marker id="arrow3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- repo outlines -->
+          <rect x="40" y="50" width="600" height="300" rx="6" fill="none" stroke="var(--line)" stroke-width="1.6" stroke-dasharray="3 4"/>
+          <text x="60" y="78" class="conn-label sub" font-size="11" style="letter-spacing:.08em">REPO &middot; brinetank-iot-cdk</text>
+
+          <rect x="760" y="50" width="600" height="300" rx="6" fill="none" stroke="var(--line)" stroke-width="1.6" stroke-dasharray="3 4"/>
+          <text x="780" y="78" class="conn-label sub" font-size="11" style="letter-spacing:.08em">REPO &middot; SaltyWater</text>
+
+          <!-- left chips -->
+          <rect class="node-box compute" x="80" y="94" width="480" height="42" rx="4"/>
+          <rect class="icon-badge ic-iot" x="89" y="103" width="24" height="24" rx="6"/>
+          <circle class="glyph" cx="101" cy="115" r="1.9"/>
+          <line class="glyph" x1="101" y1="113" x2="101" y2="108.5"/>
+          <line class="glyph" x1="102.5" y1="116" x2="106.5" y2="118"/>
+          <line class="glyph" x1="99.5" y1="116" x2="95.5" y2="118"/>
+          <text class="node-title" x="123" y="120" font-size="12.5">AWS IoT Core &mdash; BrineTankIngestRule</text>
+
+          <rect class="node-box compute" x="80" y="154" width="480" height="42" rx="4"/>
+          <rect class="icon-badge ic-compute" x="89" y="163" width="24" height="24" rx="6"/>
+          <text class="glyph-fill" x="101" y="181" font-size="15" font-family="IBM Plex Sans Condensed" font-weight="700" text-anchor="middle">&#955;</text>
+          <text class="node-title" x="123" y="180" font-size="12.5">BrineTankIngest &mdash; writes DynamoDB, invokes alert</text>
+
+          <rect class="node-box compute" x="80" y="214" width="480" height="42" rx="4"/>
+          <rect class="icon-badge ic-compute" x="89" y="223" width="24" height="24" rx="6"/>
+          <text class="glyph-fill" x="101" y="241" font-size="15" font-family="IBM Plex Sans Condensed" font-weight="700" text-anchor="middle">&#955;</text>
+          <text class="node-title" x="123" y="240" font-size="12.5">LowLevelAlert &mdash; threshold/hysteresis, enqueues SQS</text>
+
+          <rect class="node-box compute" x="80" y="274" width="480" height="42" rx="4"/>
+          <rect class="icon-badge ic-compute" x="89" y="283" width="24" height="24" rx="6"/>
+          <text class="glyph-fill" x="101" y="301" font-size="15" font-family="IBM Plex Sans Condensed" font-weight="700" text-anchor="middle">&#955;</text>
+          <text class="node-title" x="123" y="300" font-size="12.5">EmailSender &rarr; Amazon SES</text>
+
+          <!-- right chips -->
+          <rect class="node-box" x="800" y="94" width="480" height="42" rx="4"/>
+          <rect class="icon-badge ic-store" x="809" y="103" width="24" height="24" rx="6"/>
+          <path class="glyph" d="M 815,109 L 827,109 L 825,121 L 817,121 Z"/>
+          <text class="node-title" x="843" y="120" font-size="12.5">CloudFront + S3 &mdash; salty-water.com site</text>
+
+          <rect class="node-box" x="800" y="154" width="480" height="42" rx="4"/>
+          <rect class="icon-badge ic-net" x="809" y="163" width="24" height="24" rx="6"/>
+          <line class="glyph" x1="817" y1="167" x2="817" y2="179"/>
+          <line class="glyph" x1="825" y1="167" x2="825" y2="179"/>
+          <line class="glyph" x1="812" y1="173" x2="830" y2="173"/>
+          <path class="glyph" d="M 826.5,170 L 830,173 L 826.5,176"/>
+          <text class="node-title" x="843" y="180" font-size="12.5">API Gateway &mdash; /orders /contact /amazon-pay</text>
+
+          <rect class="node-box" x="800" y="214" width="480" height="42" rx="4"/>
+          <rect class="icon-badge ic-compute" x="809" y="223" width="24" height="24" rx="6"/>
+          <text class="glyph-fill" x="821" y="241" font-size="15" font-family="IBM Plex Sans Condensed" font-weight="700" text-anchor="middle">&#955;</text>
+          <text class="node-title" x="843" y="240" font-size="12.5">Order &middot; Contact &middot; Amazon&nbsp;Pay (stub)</text>
+
+          <rect class="node-box" x="800" y="274" width="480" height="42" rx="4"/>
+          <rect class="icon-badge ic-msg" x="809" y="283" width="24" height="24" rx="6"/>
+          <circle class="glyph-fill" cx="821" cy="295" r="1.6"/>
+          <path class="glyph" d="M 817,291 A 5.6,5.6 0 0 1 825,291"/>
+          <path class="glyph" d="M 814.5,288.5 A 9.2,9.2 0 0 1 827.5,288.5"/>
+          <text class="node-title" x="843" y="300" font-size="12.5">SNS Topic &rarr; adam.lott@gmail.com</text>
+
+          <!-- roadmap connector -->
+          <path class="conn dashed" d="M 560,235 C 660,235 700,235 796,235" marker-end="url(#arrow3)"/>
+          <text class="conn-label warn" x="678" y="222" font-size="11" text-anchor="middle">roadmap: auto-reorder trigger</text>
+          <text class="conn-label warn" x="678" y="252" font-size="10" text-anchor="middle">not built &mdash; known gap in both READMEs</text>
+
+          <!-- shared brand strip -->
+          <line x1="60" y1="368" x2="1340" y2="368" stroke="var(--line)" stroke-width="1.2"/>
+          <text x="700" y="358" class="conn-label sub" font-size="11" text-anchor="middle">shared today: the salty-water.com brand &middot; the same operator inbox &middot; nothing else</text>
+
+          <!-- pico prototype, unconnected -->
+          <rect x="480" y="404" width="440" height="42" rx="4" fill="none" stroke="var(--muted)" stroke-width="1.3" stroke-dasharray="2 3"/>
+          <rect class="icon-badge ic-neutral" x="489" y="413" width="24" height="24" rx="6"/>
+          <rect class="glyph" x="495" y="419" width="12" height="9" rx="1"/>
+          <path class="glyph" d="M 500,417 A 4,4 0 0 1 507,417" stroke-width="1.2"/>
+          <path class="glyph" d="M 498.3,414.8 A 6.6,6.6 0 0 1 508.7,414.8" stroke-width="1.2"/>
+          <text class="conn-label" x="523" y="422" font-size="11.5">SaltSensor prototype (Pico W)</text>
+          <text class="conn-label sub" x="523" y="436" font-size="10">WiFi + temp/uptime page &mdash; wired to nothing</text>
+        </svg>
+      </div>
+    </div>
+    <figcaption>Both systems answer to the same person and the same domain, but there is no code path from a low-salt alert to a placed order &mdash; the SaltyWater steering doc lists &ldquo;real-time salt level monitoring&rdquo; and automated reorder triggers as future work, and this repo's README lists the sensor as not connected to the order system.</figcaption>
+  </section>
+
+  <footer>derived from brinetank_iot_cdk_stack.py, customer_portal_stack.py, lambda/app.py, low_level_alert/app.py, email_sender/app.py, customer_portal_api/app.py, frontend/src/*, and .vscode/SaltyWater/{salt_delivery_app_stack.py, order_handler.py, contact_handler.py, SaltSensor/main.py} &middot; three CDK stacks, two repos, one brand</footer>
+
+</div>
+
+</body></html>
